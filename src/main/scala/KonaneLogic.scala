@@ -52,6 +52,7 @@ object KonaneLogic {
     (newBoard, newOpen)
   }
 
+  //T2
   def play(board: Board, player: Stone, coordFrom: Coord2D, coordTo: Coord2D, lstOpenCoords: List[Coord2D]): (Option[Board], List[Coord2D]) = {
     val mid = ((coordFrom._1 + coordTo._1) / 2, (coordFrom._2 + coordTo._2) / 2)
 
