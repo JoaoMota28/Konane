@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ScalaCompilerConfiguration">
+    <option name="separateProdTestSources" value="true" />
+    <profile name="sbt 1" modules="LM23_JoaoMota128782_JoaoNunes128791_RodrigoSilva105447,LM23_JoaoMota128782_JoaoNunes128791_RodrigoSilva105447.main,LM23_JoaoMota128782_JoaoNunes128791_RodrigoSilva105447.test" />
+  </component>
+</project>
