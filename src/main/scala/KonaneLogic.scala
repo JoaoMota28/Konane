@@ -90,7 +90,7 @@ object KonaneLogic {
 
     val rows = getRows(board)
     val cols = getCols(board)
-    
+
     isValidMove(board, player, coordFrom, coordTo, rows, cols) match {
       case true =>
         val (newBoard, newOpen) = executeMove(board, player, coordFrom, coordTo, mid, lstOpenCoords)
@@ -176,22 +176,78 @@ object KonaneLogic {
   //T4
   def boardToString(board: Board, rows: Int, cols: Int): String = {
 
-    val rowRange = (0 until rows).toList
-    val colRange = (0 until cols).toList
+    val colHeader = "    " + (0 until cols).toList.map(c => ( 'A'.toInt + c).toChar.toString).mkString("   ") + "\n"
 
-    rowRange.foldLeft("") { (accBoard, r) =>
+    val separator = "  " + (0 until cols).toList.map(_ => "---").mkString("+", "+", "+\n")
 
-      val rowString = colRange.foldLeft("") { (accRow, c) =>
-        val symbol = board.get((r, c)) match {
-          case Some(Stone.Black) => " B "
-          case Some(Stone.White) => " W "
-          case None              => " . "
+    val boardBody = (0 until rows).toList.foldLeft("") ( (acc, r) =>
+      val rowContent = r.toString + " | " + (0 until cols).toList.map { c =>
+        board.get((r, c)) match {
+          case Some(Stone.Black) => "B"
+          case Some(Stone.White) => "W"
+          case None              => " "
         }
+      }.mkString(" | ") + " |\n"
 
-        accRow + symbol
+      acc + rowContent + separator
+    )
+    "\n" + colHeader + separator + boardBody
+  }
+
+  def parseInput(input: String): Option[Coord2D] = {
+    val trimmed = input.trim
+    if (trimmed.length < 2) None
+    else {
+      val colChar = trimmed.toUpperCase.head
+      val rowPart = trimmed.tail
+
+      scala.util.Try(rowPart.toInt) match {
+        case scala.util.Success(row) if colChar >= 'A' && colChar <= 'Z' =>
+          val col = colChar.toInt - 'A'.toInt
+          Option((row, col))
+        case _ => None
       }
-
-      accBoard + rowString + "\n"
     }
   }
+
+  def coordToString(coord: Coord2D): String = {
+    val colChar = (coord._2 + 'A'.toInt).toChar
+    colChar.toString + coord._1.toString
+  }
+
+  def processTurn(board: Board, player: Stone, fromStr: String, toStr: String, rows: Int, cols: Int, openCoords: List[Coord2D]): Option[(Board, List[Coord2D])] = {
+    (parseInput(fromStr), parseInput(toStr)) match {
+      case (Some(from), Some(to)) =>
+
+        val isInside = from._1 >= 0 && from._1 < rows && from._2 >= 0 && from._2 < cols &&
+          to._1 >= 0 && to._1 < rows && to._2 >= 0 && to._2 < cols
+
+        if (isInside && board.get(from) == Option(player) &&
+          isValidMove(board, player, from, to, rows, cols)) {
+
+          val mid = ((from._1 + to._1) / 2, (from._2 + to._2) / 2)
+
+          val (newBoard, newOpen) = executeMove(board, player, from, to, mid, openCoords)
+
+          Option((newBoard, newOpen))
+        } else {
+          None
+        }
+      case _ => None
+    }
+  }
+
+  def isValidDimension(r: Int, c: Int): Boolean =
+    r > 2 && r <= 20 && c > 2 && c <= 20
+
+
+  def getWinner(board: Board, currentPlayer: Stone, rows: Int, cols: Int): Option[Stone] = {
+    val moves = getAllValidMoves(board, currentPlayer, rows, cols)
+    moves match {
+      case Nil =>
+        if (currentPlayer == Stone.Black) Option(Stone.White) else Option(Stone.Black)
+      case _ => None
+    }
+  }
+
 }

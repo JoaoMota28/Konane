@@ -5,40 +5,58 @@ import scala.annotation.tailrec
 object KonaneTest extends App {
   val r = 8
   val c = 8
-  val initialSeed = MyRandom(12345L)
+  if (!isValidDimension(r, c)) {
+    println("Erro: Dimensoes invalidas (" + r + " x " + c + "). Devem estar entre 3 e 20.")
+  } else {
+    val initialSeed = MyRandom(r)
+    val fullBoard = initBoard(r, c)
+    val (boardReady, openCoords, randAfterSetup) = setupBoard(fullBoard, r, c, initialSeed)
 
-  // 1. Inicialização e Setup
-  val fullBoard = initBoard(r, c)
-  val (boardReady, openCoords, randAfterSetup) = setupBoard(fullBoard, r, c, initialSeed)
-
-  println("--- JOGO INICIADO ---")
-  println(boardToString(boardReady, r, c))
-
-  // 2. Ciclo de Jogo Recursivo
-  @tailrec
-  def gameLoop(board: Board, rand: MyRandom, currentPlayer: Stone, openCoords: List[Coord2D]): Unit = {
-    // Tenta fazer uma jogada aleatória
-    val (newBoardOpt, nextRand, nextOpen, move) = playRandomly(
-      board, rand, currentPlayer, openCoords, randomMove
-    )
-
-    move match {
-      case Some(to) =>
-        println(s"Jogador ${currentPlayer} jogou para: $to")
-        val nextBoard = newBoardOpt.get
-        println(boardToString(nextBoard, r, c))
-
-        // Alterna o jogador e continua
-        val nextPlayer = if (currentPlayer == Stone.Black) Stone.White else Stone.Black
-        gameLoop(nextBoard, nextRand, nextPlayer, nextOpen)
-
-      case None =>
-        println(s"O jogador $currentPlayer não tem mais jogadas!")
-        val winner = if (currentPlayer == Stone.Black) "Brancas (W)" else "Pretas (B)"
-        println(s"--- FIM DE JOGO. VENCEDOR: $winner ---")
-    }
+    println("--- JOGO INICIADO ---")
+    gameLoop(boardReady, randAfterSetup, Stone.Black, openCoords, r, c)
   }
 
-  // Começar o jogo com as Pretas (regra do Konane)
-  gameLoop(boardReady, randAfterSetup, Stone.Black, openCoords)
+  @tailrec
+  def gameLoop(board: Board, rand: MyRandom, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int): Unit = {
+    println(boardToString(board, rows, cols))
+
+    getWinner(board, currentPlayer, rows, cols) match {
+      case Some(winner) =>
+        val winnerName = if (winner == Stone.Black) "Pretas (B)" else "Brancas (W)"
+        println("--- FIM DE JOGO ---")
+        println("Vencedor: " + winnerName)
+
+      case None =>
+        currentPlayer match {
+          case Stone.Black =>
+            println("Sua vez (Pretas - B):")
+            print("Peca a mover: ")
+            val fromStr = scala.io.StdIn.readLine()
+            print("Para onde: ")
+            val toStr = scala.io.StdIn.readLine()
+
+            processTurn(board, currentPlayer, fromStr, toStr, rows, cols, openCoords) match {
+              case Some((newBoard, newOpen)) =>
+                gameLoop(newBoard, rand, Stone.White, newOpen, rows, cols)
+              case None =>
+                println("\n!!! JOGADA INVALIDA !!!\n")
+                gameLoop(board, rand, Stone.Black, openCoords, rows, cols)
+            }
+
+          case Stone.White =>
+            println("Vez do Computador (Brancas - W)...")
+            val (newBoardOpt, nextRand, nextOpen, move) = playRandomly(
+              board, rand, currentPlayer, openCoords, randomMove
+            )
+
+            move match {
+              case Some(to) =>
+                println("O computador jogou para: " + coordToString(to))
+                gameLoop(newBoardOpt.get, nextRand, Stone.Black, nextOpen, rows, cols)
+              case None =>
+                gameLoop(board, nextRand, Stone.Black, openCoords, rows, cols)
+            }
+        }
+    }
+  }
 }
