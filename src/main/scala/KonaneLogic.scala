@@ -55,6 +55,7 @@ object KonaneLogic {
   }
 
   def isValidMove(board: Board, player: Stone, from: Coord2D, to: Coord2D, rows: Int, cols: Int): Boolean = {
+
     val (rTo, cTo) = to
 
     if (rTo < 0 || rTo >= rows || cTo < 0 || cTo >= cols) false
@@ -102,28 +103,38 @@ object KonaneLogic {
   }
 
   def getAllValidMoves(board: Board, player: Stone, rows: Int, cols: Int): List[(Coord2D, Coord2D)] = {
+
     val allCoords = board.keys.toList
+
+    @tailrec
+    def loop(remaining: List[Coord2D], acc: List[(Coord2D, Coord2D)]): List[(Coord2D, Coord2D)] = remaining match {
+      case Nil => acc.reverse
+      case from :: tail =>
+        val dests = getValidMovesForPiece(board, player, from, rows, cols)
+        val pairs = dests.map(to => (from, to))
+        loop(tail, pairs.reverse ++ acc)
+    }
+
+    loop(allCoords, Nil)
+  }
+  
+  def getValidMovesForPiece(board: Board, player: Stone, from: Coord2D, rows: Int, cols: Int): List[Coord2D] = {
     val directions = List((2, 0), (-2, 0), (0, 2), (0, -2))
 
-    def checkDirections(from: Coord2D, ds: List[(Int, Int)]): List[(Coord2D, Coord2D)] = ds match {
-      case Nil => Nil
+    @tailrec
+    def loop(ds: List[(Int, Int)], acc: List[Coord2D]): List[Coord2D] = ds match {
+      case Nil => acc.reverse
       case (dr, dc) :: tail =>
         val to = (from._1 + dr, from._2 + dc)
-        // Agora passamos rows e cols para validar os limites
-        if (isValidMove(board, player, from, to, rows, cols))
-          (from, to) :: checkDirections(from, tail)
-        else
-          checkDirections(from, tail)
+        if (isValidMove(board, player, from, to, rows, cols)) loop(tail, to :: acc)
+        else loop(tail, acc)
     }
 
-    def iterateCoords(coords: List[Coord2D]): List[(Coord2D, Coord2D)] = coords match {
-      case Nil => Nil
-      case head :: tail =>
-        checkDirections(head, directions) ++ iterateCoords(tail)
-    }
-
-    iterateCoords(allCoords)
+    loop(directions, Nil)
   }
+
+  def canMoveAgain(board: Board, player: Stone, from: Coord2D, rows: Int, cols: Int): Boolean =
+    getValidMovesForPiece(board, player, from, rows, cols).nonEmpty
 
   def getDestinations(mvs: List[(Coord2D, Coord2D)]): List[Coord2D] = {
 
@@ -176,7 +187,7 @@ object KonaneLogic {
   //T4
   def boardToString(board: Board, rows: Int, cols: Int): String = {
 
-    val colHeader = "    " + (0 until cols).toList.map(c => ( 'A'.toInt + c).toChar.toString).mkString("   ") + "\n"
+    val colHeader = "    " + (0 until cols).toList.map(c => ('A'.toInt + c).toChar.toString).mkString("   ") + "\n"
 
     val separator = "  " + (0 until cols).toList.map(_ => "---").mkString("+", "+", "+\n")
 
@@ -215,7 +226,9 @@ object KonaneLogic {
     colChar.toString + coord._1.toString
   }
 
-  def processTurn(board: Board, player: Stone, fromStr: String, toStr: String, rows: Int, cols: Int, openCoords: List[Coord2D]): Option[(Board, List[Coord2D])] = {
+  def processTurn(board: Board, player: Stone, fromStr: String, 
+                  toStr: String, rows: Int, cols: Int, 
+                  openCoords: List[Coord2D]): Option[(Board, List[Coord2D])] = {
     (parseInput(fromStr), parseInput(toStr)) match {
       case (Some(from), Some(to)) =>
 
