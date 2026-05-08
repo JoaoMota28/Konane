@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="OptionsController" spacing="15" alignment="TOP_CENTER" prefWidth="500" prefHeight="450">
+    <padding>
+        <Insets top="20" bottom="20" left="30" right="30"/>
+    </padding>
+
+    <Label text="--- OPÇÕES ---" style="-fx-font-size: 20; -fx-font-weight: bold;"/>
+
+    <Label text="Dificuldade:" style="-fx-font-size: 14;"/>
+    <ComboBox fx:id="difficultyBox" prefWidth="300"/>
+
+    <Label text="Tamanho do Tabuleiro:" style="-fx-font-size: 14;"/>
+    <ComboBox fx:id="boardSizeBox" prefWidth="300"/>
+
+    <Label text="Tempo por Jogada (segundos):" style="-fx-font-size: 14;"/>
+    <ComboBox fx:id="tempoBox" prefWidth="300"/>
+
+    <HBox spacing="10" alignment="CENTER">
+        <Button fx:id="applyButton" text="Aplicar" prefWidth="120" prefHeight="40"/>
+        <Button fx:id="cancelButton" text="Cancelar" prefWidth="120" prefHeight="40"/>
+    </HBox>
+</VBox>
+

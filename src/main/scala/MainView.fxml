@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="MainController" spacing="15" alignment="CENTER" prefWidth="500" prefHeight="400">
+    <padding>
+        <Insets top="30" bottom="30" left="30" right="30"/>
+    </padding>
+
+    <Label text="--- KONANE ---" style="-fx-font-size: 24; -fx-font-weight: bold;"/>
+
+    <Button fx:id="botButton" text="Jogar contra o Computador" prefWidth="300" prefHeight="50"/>
+    <Button fx:id="multiButton" text="Jogar contra outro Jogador" prefWidth="300" prefHeight="50"/>
+    <Button fx:id="loadButton" text="Carregar Jogo" prefWidth="300" prefHeight="50"/>
+    <Button fx:id="optionsButton" text="Opções" prefWidth="300" prefHeight="50"/>
+    <Button fx:id="exitButton" text="Sair" prefWidth="300" prefHeight="50"/>
+</VBox>
+
