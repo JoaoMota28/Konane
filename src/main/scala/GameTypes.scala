@@ -15,6 +15,8 @@ case class GameOver(winner: Stone) extends TurnResult
 case class SaveRequested(board: Board, rand: MyRandom, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColorOpt: Option[Stone], difficulty: String) extends TurnResult
 
 // Immutable game state
+// Note: Information about human vs computer players is derived from mode + playerColorOpt
+// No redundant blackPlayer/whitePlayer fields - avoid inconsistent state
 case class GameState(
                       board: Board,
                       rand: MyRandom,
@@ -23,8 +25,6 @@ case class GameState(
                       rows: Int,
                       cols: Int,
                       history: List[(Board, MyRandom, Stone, List[Coord2D])],
-                      blackPlayer: Boolean,
-                      whitePlayer: Boolean,
                       mode: String,
                       playerColorOpt: Option[Stone],
                       loadedSavePath: Option[String],

@@ -40,15 +40,16 @@ class OptionsController {
   }
 
   @FXML
-  private def handleSave(): Unit = {
+  private def closeWindow(): Unit = {
     val stage = difficultyBox.getScene.getWindow.asInstanceOf[Stage]
     stage.close()
   }
 
+  // Both buttons use the same handler - user changes are already reflected in the ComboBoxes
   @FXML
-  private def handleCancel(): Unit = {
-    val stage = difficultyBox.getScene.getWindow.asInstanceOf[Stage]
-    stage.close()
-  }
+  private def handleSave(): Unit = closeWindow()
+
+  @FXML
+  private def handleCancel(): Unit = closeWindow()
 }
 

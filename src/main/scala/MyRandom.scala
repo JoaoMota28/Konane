@@ -1,3 +1,8 @@
+trait RandomWithState {
+  def nextInt(): (Int, RandomWithState)
+  def nextInt(n: Int): (Int, RandomWithState)
+}
+
 case class MyRandom(seed: Long) extends RandomWithState {
 
   def nextInt(): (Int, MyRandom) = {

@@ -1,9 +1,5 @@
 import KonaneLogic.*
 
-// Pure functional API facade for the Konane core logic.
-// This module intentionally contains no I/O: it only composes and re-exports
-// pure functions from KonaneLogic so the CLI and any GUI can call the same
-// core behaviour without duplicating logic or mixing I/O.
 object GameEngine {
   // Board creation and setup
   def initBoard(rows: Int, cols: Int): Board = KonaneLogic.initBoard(rows, cols)
@@ -29,26 +25,14 @@ object GameEngine {
   def boardToString(board: Board, rows: Int, cols: Int): String = KonaneLogic.boardToString(board, rows, cols)
   def parseInput(s: String): Option[Coord2D] = KonaneLogic.parseInput(s)
   def coordToString(c: Coord2D): String = KonaneLogic.coordToString(c)
-  def processTurn(board: Board, player: Stone, fromStr: String, toStr: String, rows: Int, cols: Int, openCoords: List[Coord2D]): Option[(Board, List[Coord2D])] = KonaneLogic.processTurn(board, player, fromStr, toStr, rows, cols, openCoords)
   def getWinner(board: Board, currentPlayer: Stone, rows: Int, cols: Int): Option[Stone] = KonaneLogic.getWinner(board, currentPlayer, rows, cols)
   // Pure helpers for move sequences and serialization
   def applyMoveSequence(board: Board, player: Stone, startFrom: Coord2D, destinations: List[Coord2D], rows: Int, cols: Int, openCoords: List[Coord2D]): Option[(Board, List[Coord2D])] = KonaneLogic.applyMoveSequence(board, player, startFrom, destinations, rows, cols, openCoords)
   def continueCapturePure(board: Board, player: Stone, lastPos: Coord2D, choiceOpt: Option[Coord2D], rows: Int, cols: Int, openCoords: List[Coord2D]): Option[(Board, List[Coord2D], Boolean)] = KonaneLogic.continueCapturePure(board, player, lastPos, choiceOpt, rows, cols, openCoords)
-  def applyInitialMovePure(board: Board, player: Stone, from: Coord2D, to: Coord2D, rows: Int, cols: Int, openCoords: List[Coord2D]): Option[(Board, List[Coord2D])] = KonaneLogic.applyInitialMovePure(board, player, from, to, rows, cols, openCoords)
   def serializeGame(board: Board, randSeed: Long, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColorOpt: Option[Stone], difficulty: String): String = KonaneLogic.serializeGame(board, randSeed, currentPlayer, openCoords, rows, cols, mode, playerColorOpt, difficulty)
   def parseGameContent(content: String): Option[(Board, MyRandom, Stone, List[Coord2D], Int, Int, String, Option[Stone], String)] = KonaneLogic.parseGameContent(content)
   def isAcceptedTimeMillis(ms: Long): Boolean = KonaneLogic.isAcceptedTimeMillis(ms)
 
-  // Create initial game state (pure). Returns:
-  // (boardReady, openCoords, randAfterSetup, startingPlayer, playerColorOpt, blackPlayerFlag, whitePlayerFlag, mode)
-  def newGameState(rows: Int, cols: Int, playerPlaysBlack: Boolean, seed: MyRandom): (Board, List[Coord2D], MyRandom, Stone, Option[Stone], Boolean, Boolean, String) = {
-    val fullBoard = initBoard(rows, cols)
-    val (boardReady, openCoords, randAfterSetup) = setupBoard(fullBoard, rows, cols, seed)
-    val playerColor = if (playerPlaysBlack) Some(Stone.Black) else Some(Stone.White)
-    val (blackH, whiteH) = if (playerPlaysBlack) (true, false) else (false, true)
-    val mode = "HVC"
-    (boardReady, openCoords, randAfterSetup, Stone.Black, playerColor, blackH, whiteH, mode)
-  }
 
   // --- Pure game controller helpers (moved here to keep a single pure core) ---
   private def switchPlayer(p: Stone): Stone = if (p == Stone.Black) Stone.White else Stone.Black
@@ -63,23 +47,12 @@ object GameEngine {
     }
   }
 
-  @scala.annotation.tailrec
-  private def applyForcedCaptures(board: Board, open: List[Coord2D], player: Stone, lastPos: Coord2D, rows: Int, cols: Int): (Board, List[Coord2D], Coord2D) = {
-    val possible = getValidMovesForPiece(board, player, lastPos, rows, cols)
-    if (possible.isEmpty) (board, open, lastPos)
-    else if (possible.length == 1) {
-      continueCapturePure(board, player, lastPos, Some(possible.head), rows, cols, open) match {
-        case Some((b2, o2, canContinue)) =>
-          if (canContinue) applyForcedCaptures(b2, o2, player, possible.head, rows, cols)
-          else (b2, o2, possible.head)
-        case None => (board, open, lastPos)
-      }
-    } else (board, open, lastPos)
-  }
-
   def handleMakeMove(state: GameState, from: Coord2D, to: Coord2D): (GameState, TurnResult) = {
     val gs = state
-    applyInitialMovePure(gs.board, gs.currentPlayer, from, to, gs.rows, gs.cols, gs.openCoords) match {
+    KonaneLogic.play(gs.board, gs.currentPlayer, from, to, gs.openCoords) match {
+      case (Some(nb), no) => Some((nb, no))
+      case _ => None
+    } match {
       case None => (gs, InvalidAction("Jogada invalida"))
       case Some((nb, no)) =>
         val possible = getValidMovesForPiece(nb, gs.currentPlayer, to, gs.rows, gs.cols)
@@ -178,7 +151,7 @@ object GameEngine {
 
   def handleUndo(state: GameState): (GameState, TurnResult) = {
     val toPop = Math.min(2, state.history.length)
-    if (toPop == 0) (state, InvalidAction("Nada para desfazer"))
+    if (toPop == 0) (state, MoveOk(state))
     else {
       val restored = state.history(toPop - 1)
       val newHistory = state.history.drop(toPop)

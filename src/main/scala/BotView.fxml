@@ -6,24 +6,26 @@
 <?import javafx.scene.image.*?>
 
 <BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="BotController" prefWidth="900" prefHeight="750">
+            fx:controller="BotController" prefWidth="900" prefHeight="750"
+            style="-fx-background-color: #f5e6d3;">
 
     <top>
-        <HBox spacing="15" alignment="CENTER_LEFT" prefHeight="70">
+        <HBox spacing="15" alignment="CENTER_LEFT" prefHeight="70"
+              style="-fx-background-color: #8b7355; -fx-padding: 10;">
             <padding>
                 <Insets top="10" bottom="10" left="15" right="15"/>
             </padding>
-            <Label text="Tempo:" style="-fx-font-size: 14;"/>
-            <ProgressBar fx:id="timeProgressBar" prefWidth="400"/>
-            <Separator orientation="VERTICAL"/>
-            <Label fx:id="playerLabel" text="Jogador:" style="-fx-font-size: 14;"/>
+            <Label text="Tempo:" style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: white;"/>
+            <ProgressBar fx:id="timeProgressBar" prefWidth="400" style="-fx-control-inner-background: #f5deb3;"/>
+            <Separator orientation="VERTICAL" style="-fx-border-color: white;"/>
+            <Label fx:id="playerLabel" text="Jogador:" style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: white;"/>
         </HBox>
     </top>
 
     <center>
         <ScrollPane fitToWidth="true" fitToHeight="true" pannable="true"
                     hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED"
-                    style="-fx-background-color: transparent;">
+                    style="-fx-background-color: #f5e6d3; -fx-control-inner-background: #f5e6d3;">
             <content>
                 <StackPane alignment="CENTER">
                     <GridPane fx:id="boardGrid" hgap="2" vgap="2" alignment="CENTER"
@@ -38,19 +40,23 @@
     </center>
 
     <bottom>
-        <VBox alignment="CENTER" spacing="10">
-            <Label fx:id="statusLabel" text="Preparando..." style="-fx-font-size: 12;"/>
+        <VBox alignment="CENTER" spacing="10" style="-fx-background-color: #f5e6d3;">
+            <Label fx:id="statusLabel" text="Preparando..." style="-fx-font-size: 12; -fx-text-fill: #5d4e37; -fx-font-weight: bold;"/>
             <HBox spacing="10" alignment="CENTER" prefHeight="60">
                 <padding>
                     <Insets top="10" bottom="10"/>
                 </padding>
-                <Button fx:id="randomButton" text="Jogada Aleatória" prefWidth="120" prefHeight="40"/>
-                <Button fx:id="undoButton" text="Undo" prefWidth="100" prefHeight="40"/>
-                <Button fx:id="saveButton" text="Save" prefWidth="100" prefHeight="40"/>
-                <Button fx:id="restartButton" text="Restart" prefWidth="100" prefHeight="40"/>
-                <Button fx:id="backButton" text="Voltar ao Menu" prefWidth="150" prefHeight="40"/>
+                <Button fx:id="randomButton" text="🎲 Aleatória" prefWidth="130" prefHeight="40"
+                        style="-fx-font-size: 11; -fx-font-weight: bold; -fx-base: #8b7355; -fx-text-fill: white; -fx-padding: 8; -fx-cursor: hand;"/>
+                <Button fx:id="undoButton" text="↶ Desfazer" prefWidth="110" prefHeight="40"
+                        style="-fx-font-size: 11; -fx-font-weight: bold; -fx-base: #a9927d; -fx-text-fill: white; -fx-padding: 8; -fx-cursor: hand;"/>
+                <Button fx:id="saveButton" text="💾 Guardar" prefWidth="110" prefHeight="40"
+                        style="-fx-font-size: 11; -fx-font-weight: bold; -fx-base: #a9927d; -fx-text-fill: white; -fx-padding: 8; -fx-cursor: hand;"/>
+                <Button fx:id="restartButton" text="🔄 Recomeçar" prefWidth="130" prefHeight="40"
+                        style="-fx-font-size: 11; -fx-font-weight: bold; -fx-base: #a9927d; -fx-text-fill: white; -fx-padding: 8; -fx-cursor: hand;"/>
+                <Button fx:id="backButton" text="❌ Menu" prefWidth="100" prefHeight="40"
+                        style="-fx-font-size: 11; -fx-font-weight: bold; -fx-base: #c9a98b; -fx-text-fill: white; -fx-padding: 8; -fx-cursor: hand;"/>
             </HBox>
         </VBox>
     </bottom>
 </BorderPane>
-

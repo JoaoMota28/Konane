@@ -123,14 +123,6 @@ object KonaneLogic {
     }
   }
 
-  // Pure initial move application: validates and applies a single move (from->to).
-  def applyInitialMovePure(board: Board, player: Stone, from: Coord2D, to: Coord2D, rows: Int, cols: Int, openCoords: List[Coord2D]): Option[(Board, List[Coord2D])] = {
-    val (newBoardOpt, newOpen) = play(board, player, from, to, openCoords)
-    newBoardOpt match {
-      case Some(nb) => Some((nb, newOpen))
-      case None => None
-    }
-  }
 
   //T2
   def play(board: Board, player: Stone,
@@ -141,12 +133,10 @@ object KonaneLogic {
     val rows = getRows(board)
     val cols = getCols(board)
 
-    isValidMove(board, player, coordFrom, coordTo, rows, cols) match {
-      case true =>
+    if (isValidMove(board, player, coordFrom, coordTo, rows, cols)) {
         val (newBoard, newOpen) = executeMove(board, player, coordFrom, coordTo, mid, lstOpenCoords)
         (Some(newBoard), newOpen)
-
-      case false =>
+    } else {
         (None, lstOpenCoords)
     }
   }
@@ -337,30 +327,6 @@ object KonaneLogic {
   def coordToString(coord: Coord2D): String = {
     val colChar = (coord._2 + 'A'.toInt).toChar
     colChar.toString + coord._1.toString
-  }
-
-  def processTurn(board: Board, player: Stone, fromStr: String, 
-                  toStr: String, rows: Int, cols: Int, 
-                  openCoords: List[Coord2D]): Option[(Board, List[Coord2D])] = {
-    (parseInput(fromStr), parseInput(toStr)) match {
-      case (Some(from), Some(to)) =>
-
-        val isInside = from._1 >= 0 && from._1 < rows && from._2 >= 0 && from._2 < cols &&
-          to._1 >= 0 && to._1 < rows && to._2 >= 0 && to._2 < cols
-
-        if (isInside && board.get(from) == Option(player) &&
-          isValidMove(board, player, from, to, rows, cols)) {
-
-          val mid = ((from._1 + to._1) / 2, (from._2 + to._2) / 2)
-
-          val (newBoard, newOpen) = executeMove(board, player, from, to, mid, openCoords)
-
-          Option((newBoard, newOpen))
-        } else {
-          None
-        }
-      case _ => None
-    }
   }
 
   def isValidDimension(r: Int, c: Int): Boolean =

@@ -5,17 +5,41 @@
 <?import javafx.geometry.*?>
 
 <VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="MainController" spacing="15" alignment="CENTER" prefWidth="500" prefHeight="400">
+      fx:controller="MainController" spacing="15" alignment="CENTER" prefWidth="500" prefHeight="450"
+      style="-fx-background-color: #f5e6d3;">
     <padding>
-        <Insets top="30" bottom="30" left="30" right="30"/>
+        <Insets top="60" bottom="60" left="60" right="60"/>
     </padding>
 
-    <Label text="--- KONANE ---" style="-fx-font-size: 24; -fx-font-weight: bold;"/>
+    <!-- Title -->
+    <Label text="♛ KONANE ♛" alignment="CENTER"
+           style="-fx-font-size: 32; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
 
-    <Button fx:id="botButton" text="Jogar contra o Computador" prefWidth="300" prefHeight="50"/>
-    <Button fx:id="multiButton" text="Jogar contra outro Jogador" prefWidth="300" prefHeight="50"/>
-    <Button fx:id="loadButton" text="Carregar Jogo" prefWidth="300" prefHeight="50"/>
-    <Button fx:id="optionsButton" text="Opções" prefWidth="300" prefHeight="50"/>
-    <Button fx:id="exitButton" text="Sair" prefWidth="300" prefHeight="50"/>
+    <!-- Subtitle -->
+    <Label text="Jogo da Captura" alignment="CENTER"
+           style="-fx-font-size: 14; -fx-text-fill: #8b7355; -fx-font-style: italic;"/>
+
+    <!-- Separator -->
+    <Separator style="-fx-border-color: #8b7355; -fx-border-width: 1;"/>
+
+    <!-- Play vs Bot -->
+    <Button fx:id="botButton" text="🤖 Jogar contra o Computador" prefWidth="400" prefHeight="65"
+            style="-fx-font-size: 14; -fx-font-weight: bold; -fx-base: #8b7355; -fx-text-fill: white; -fx-padding: 12; -fx-cursor: hand;"/>
+
+    <!-- Play vs Player -->
+    <Button fx:id="multiButton" text="👥 Jogar contra outro Jogador" prefWidth="400" prefHeight="65"
+            style="-fx-font-size: 14; -fx-font-weight: bold; -fx-base: #8b7355; -fx-text-fill: white; -fx-padding: 12; -fx-cursor: hand;"/>
+
+    <!-- Load Game -->
+    <Button fx:id="loadButton" text="📂 Carregar Jogo" prefWidth="400" prefHeight="65"
+            style="-fx-font-size: 14; -fx-font-weight: bold; -fx-base: #a9927d; -fx-text-fill: white; -fx-padding: 12; -fx-cursor: hand;"/>
+
+    <!-- Options -->
+    <Button fx:id="optionsButton" text="⚙ Opções" prefWidth="400" prefHeight="65"
+            style="-fx-font-size: 14; -fx-font-weight: bold; -fx-base: #a9927d; -fx-text-fill: white; -fx-padding: 12; -fx-cursor: hand;"/>
+
+    <!-- Exit -->
+    <Button fx:id="exitButton" text="❌ Sair" prefWidth="400" prefHeight="65"
+            style="-fx-font-size: 14; -fx-font-weight: bold; -fx-base: #c9a98b; -fx-text-fill: white; -fx-padding: 12; -fx-cursor: hand;"/>
 </VBox>
 

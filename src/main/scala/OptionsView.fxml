@@ -5,25 +5,49 @@
 <?import javafx.geometry.*?>
 
 <VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="OptionsController" spacing="15" alignment="TOP_CENTER" prefWidth="500" prefHeight="450">
+      fx:controller="OptionsController" spacing="20" alignment="TOP_CENTER" prefWidth="550" prefHeight="500"
+      style="-fx-background-color: #f5e6d3;">
     <padding>
-        <Insets top="20" bottom="20" left="30" right="30"/>
+        <Insets top="30" bottom="30" left="40" right="40"/>
     </padding>
 
-    <Label text="--- OPÇÕES ---" style="-fx-font-size: 20; -fx-font-weight: bold;"/>
+    <!-- Title -->
+    <Label text="⚙ OPÇÕES ⚙" alignment="CENTER"
+           style="-fx-font-size: 24; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
 
-    <Label text="Dificuldade:" style="-fx-font-size: 14;"/>
-    <ComboBox fx:id="difficultyBox" prefWidth="300"/>
+    <!-- Separator -->
+    <Separator/>
 
-    <Label text="Tamanho do Tabuleiro:" style="-fx-font-size: 14;"/>
-    <ComboBox fx:id="boardSizeBox" prefWidth="300"/>
+    <!-- Difficulty Section -->
+    <VBox spacing="8">
+        <Label text="Dificuldade:" style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
+        <ComboBox fx:id="difficultyBox" prefWidth="400" prefHeight="35"
+                  style="-fx-font-size: 12; -fx-padding: 8; -fx-control-inner-background: #f5deb3; -fx-text-fill: #5d4e37;"/>
+    </VBox>
 
-    <Label text="Tempo por Jogada (segundos):" style="-fx-font-size: 14;"/>
-    <ComboBox fx:id="tempoBox" prefWidth="300"/>
+    <!-- Board Size Section -->
+    <VBox spacing="8">
+        <Label text="Tamanho do Tabuleiro:" style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
+        <ComboBox fx:id="boardSizeBox" prefWidth="400" prefHeight="35"
+                  style="-fx-font-size: 12; -fx-padding: 8; -fx-control-inner-background: #f5deb3; -fx-text-fill: #5d4e37;"/>
+    </VBox>
 
-    <HBox spacing="10" alignment="CENTER">
-        <Button fx:id="applyButton" text="Aplicar" prefWidth="120" prefHeight="40"/>
-        <Button fx:id="cancelButton" text="Cancelar" prefWidth="120" prefHeight="40"/>
+    <!-- Time Section -->
+    <VBox spacing="8">
+        <Label text="Tempo por Jogada (segundos):" style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
+        <ComboBox fx:id="tempoBox" prefWidth="400" prefHeight="35"
+                  style="-fx-font-size: 12; -fx-padding: 8; -fx-control-inner-background: #f5deb3; -fx-text-fill: #5d4e37;"/>
+    </VBox>
+
+    <!-- Spacer -->
+    <Region VBox.vgrow="ALWAYS"/>
+
+    <!-- Buttons -->
+    <HBox spacing="15" alignment="CENTER" prefHeight="50">
+        <Button fx:id="applyButton" text="✓ Aplicar" prefWidth="140" prefHeight="45"
+                style="-fx-font-size: 13; -fx-font-weight: bold; -fx-base: #8b7355; -fx-text-fill: white; -fx-padding: 10; -fx-cursor: hand;"/>
+        <Button fx:id="cancelButton" text="✕ Cancelar" prefWidth="140" prefHeight="45"
+                style="-fx-font-size: 13; -fx-font-weight: bold; -fx-base: #a9927d; -fx-text-fill: white; -fx-padding: 10; -fx-cursor: hand;"/>
     </HBox>
 </VBox>
 

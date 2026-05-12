@@ -1,21 +1,19 @@
-import scala.annotation.tailrec
-
 object Difficulty {
 
   trait Strategy {
     def choose(possible: List[Coord2D], r: MyRandom): (Coord2D, MyRandom)
   }
 
-  // Easy: purely random
-  class EasyStrategy extends Strategy {
+  // Random strategy: used for both Easy and Medium modes
+  // The difference between Easy and Medium is controlled in GameEngine (consecutive capture handling),
+  // not in the move selection strategy
+  class RandomStrategy extends Strategy {
     def choose(possible: List[Coord2D], r: MyRandom) =
-      if (possible.isEmpty) ((0, 0), r) else { val (i, r2) = r.nextInt(possible.length); (possible(i), r2) }
-  }
-
-  // Medium: purely random (but will do consecutive captures)
-  class MediumStrategy extends Strategy {
-    def choose(possible: List[Coord2D], r: MyRandom) =
-      if (possible.isEmpty) ((0, 0), r) else { val (i, r2) = r.nextInt(possible.length); (possible(i), r2) }
+      if (possible.isEmpty) ((0, 0), r)
+      else {
+        val (i, r2) = r.nextInt(possible.length)
+        (possible(i), r2)
+      }
   }
 
   // Hard: greedy one-step evaluation
@@ -27,9 +25,11 @@ object Difficulty {
         val evaluations = possible.map { dest =>
           val sources = pairs.filter(_._2 == dest).map(_._1)
           val scores = sources.flatMap { from =>
-            KonaneLogic.applyInitialMovePure(board, player, from, dest, rows, cols, openCoords) match {
+            // Use play directly instead of deprecated applyInitialMovePure
+            val (nbOpt, _) = KonaneLogic.play(board, player, from, dest, openCoords)
+            nbOpt match {
               case None => Nil
-              case Some((nb, _)) =>
+              case Some(nb) =>
                 val opp = if (player == Stone.Black) Stone.White else Stone.Black
                 val myMoves = KonaneLogic.getAllValidMoves(nb, player, rows, cols).length
                 val oppMoves = KonaneLogic.getAllValidMoves(nb, opp, rows, cols).length
@@ -49,12 +49,12 @@ object Difficulty {
 
   // Factory: returns a chooser function from the selected Strategy
   def makeChooser(level: String, board: Board, player: Stone, rows: Int, cols: Int, openCoords: List[Coord2D], mode: String = "HVC"): (List[Coord2D], MyRandom) => (Coord2D, MyRandom) = {
-    if (mode == "HVH") new EasyStrategy().choose
+    if (mode == "HVH") new RandomStrategy().choose  // HvH always uses random
     else level.toLowerCase match {
-      case "facil" | "easy" => new EasyStrategy().choose
-      case "medio" | "medium" => new MediumStrategy().choose
+      case "facil" | "easy" => new RandomStrategy().choose  // Fácil: purely random moves
+      case "medio" | "medium" => new RandomStrategy().choose  // Médio: random (but engine encourages consecutive captures)
       case "dificil" | "hard" => new HardStrategy(board, player, rows, cols, openCoords).choose
-      case _ => new EasyStrategy().choose
+      case _ => new RandomStrategy().choose
     }
   }
 

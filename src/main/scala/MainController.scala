@@ -1,11 +1,9 @@
-import javafx.fxml.{FXML, FXMLLoader}
-import javafx.scene.{Parent, Scene}
-import javafx.scene.control.Button
-import javafx.scene.image.Image
-import javafx.stage.Stage
 import javafx.application.Platform
+import javafx.fxml.{FXML, FXMLLoader}
+import javafx.scene.control.Button
+import javafx.scene.{Parent, Scene}
+import javafx.stage.Stage
 import scala.jdk.CollectionConverters.*
-import KonaneLogic.*
 
 class MainController {
 
@@ -18,6 +16,17 @@ class MainController {
   private var selectedDifficulty: String = "facil"
   private var selectedBoardSize: Int = 8
   private var selectedTempo: Int = 60
+
+  /**
+   * Helper method to open a Stage with consistent configuration.
+   */
+  private def openStage(root: Parent, title: String, w: Int = 900, h: Int = 750, resizable: Boolean = true): Unit = {
+    val stage = new Stage()
+    stage.setScene(new Scene(root, w, h))
+    stage.setTitle(title)
+    stage.setResizable(resizable)
+    stage.show()
+  }
 
   @FXML
   def initialize(): Unit = {
@@ -68,14 +77,10 @@ class MainController {
     val root = loader.load[Parent]()
     val controller = loader.getController[BotController]
 
-    controller.setOptions(selectedDifficulty, selectedTempo, selectedBoardSize, selectedColor)
+     controller.setOptions(selectedDifficulty, selectedTempo, selectedBoardSize, selectedColor)
 
-    val stage = new Stage()
-    stage.setScene(new Scene(root, 900, 750))
-    stage.setTitle("Konane - Jogar contra o Computador")
-    stage.setResizable(true)
-    stage.show()
-  }
+     openStage(root, "Konane - Jogar contra o Computador")
+   }
 
   @FXML
   private def handleMultiplayer(): Unit = {
@@ -83,14 +88,10 @@ class MainController {
     val root = loader.load[Parent]()
     val controller = loader.getController[MultiplayerController]
 
-    controller.setOptions(selectedTempo, selectedBoardSize)
+     controller.setOptions(selectedTempo, selectedBoardSize)
 
-    val stage = new Stage()
-    stage.setScene(new Scene(root, 900, 750))
-    stage.setTitle("Konane - Multiplayer")
-    stage.setResizable(true)
-    stage.show()
-  }
+     openStage(root, "Konane - Multiplayer")
+   }
 
   @FXML
   private def handleLoadGame(): Unit = {
@@ -129,14 +130,10 @@ class MainController {
             case "HVH" =>
               val mc = loader.getController[MultiplayerController]()
               mc.loadGame(board, rand, currentPlayer, openCoords, r, c, f.getPath, selectedTempo)
-            case _ => ()
-          }
+             case _ => ()
+           }
 
-          val stage = new Stage()
-          stage.setScene(new Scene(root, 900, 750))
-          stage.setTitle("Konane - Jogo Carregado")
-          stage.setResizable(true)
-          stage.show()
+           openStage(root, "Konane - Jogo Carregado")
         case None =>
           val alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
             "Erro ao carregar ficheiro.", javafx.scene.control.ButtonType.OK)
