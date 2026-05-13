@@ -16,16 +16,47 @@ class MainController {
   private var selectedDifficulty: String = "facil"
   private var selectedBoardSize: Int = 8
   private var selectedTempo: Int = 60
+  private var primaryStage: Stage = _
+
+  def setPrimaryStage(s: Stage): Unit = {
+    primaryStage = s
+  }
 
   /**
-   * Helper method to open a Stage with consistent configuration.
+   * Load FXML and get (root, controller) pair for navigation.
    */
-  private def openStage(root: Parent, title: String, w: Int = 900, h: Int = 750, resizable: Boolean = true): Unit = {
-    val stage = new Stage()
-    stage.setScene(new Scene(root, w, h))
-    stage.setTitle(title)
-    stage.setResizable(resizable)
-    stage.show()
+  private def switchTo(fxmlPath: String): (Parent, Any) = {
+    val loader = new FXMLLoader(getClass.getResource(fxmlPath))
+    val root = loader.load[Parent]()
+    (root, loader.getController[Any]())
+  }
+
+  /**
+   * Switch content in the current Stage without opening a new one.
+   */
+  private def showScene(root: Parent): Unit = {
+    primaryStage.getScene.setRoot(root)
+  }
+
+  /**
+   * Return to main menu.
+   */
+  private def showMainMenu(): Unit = {
+    val (menuRoot, menuController) = switchTo("/MainView.fxml")
+    val ctrl = menuController.asInstanceOf[MainController]
+    ctrl.setPrimaryStage(primaryStage)
+    showScene(menuRoot)
+  }
+
+  /**
+   * Start a bot game with the given color.
+   */
+  private def startBotGame(colorOpt: Option[Stone]): Unit = {
+    val (botRoot, botController) = switchTo("/BotView.fxml")
+    val ctrl = botController.asInstanceOf[BotController]
+    ctrl.setOptions(selectedDifficulty, selectedTempo, selectedBoardSize, colorOpt)
+    ctrl.setPrimaryStage(primaryStage)
+    showScene(botRoot)
   }
 
   @FXML
@@ -39,59 +70,37 @@ class MainController {
 
   @FXML
   private def handleOptions(): Unit = {
-    val loader = new FXMLLoader(getClass.getResource("/OptionsView.fxml"))
-    val root = loader.load[Parent]()
-    val controller = loader.getController[OptionsController]
-
-    controller.setInitialOptions(selectedDifficulty, selectedBoardSize, selectedTempo)
-
-    val stage = new Stage()
-    stage.setScene(new Scene(root, 500, 450))
-    stage.setTitle("Opções")
-    stage.setResizable(false)
-    stage.showAndWait()
-
-    val (diff, size, tempo) = controller.getSelectedOptions
-    selectedDifficulty = diff
-    selectedBoardSize = size
-    selectedTempo = tempo
+    val (optionsRoot, optionsController) = switchTo("/OptionsView.fxml")
+    val ctrl = optionsController.asInstanceOf[OptionsController]
+    ctrl.setInitialOptions(selectedDifficulty, selectedBoardSize, selectedTempo)
+    ctrl.setOnClose(() => {
+      val (diff, size, tempo) = ctrl.getSelectedOptions
+      selectedDifficulty = diff
+      selectedBoardSize = size
+      selectedTempo = tempo
+      showMainMenu()
+    })
+    showScene(optionsRoot)
   }
 
   @FXML
   private def handlePlayWithBot(): Unit = {
-    // Show color selection dialog
-    val colorLoader = new FXMLLoader(getClass.getResource("/ColorSelectionView.fxml"))
-    val colorRoot = colorLoader.load[Parent]()
-    val colorController = colorLoader.getController[ColorSelectionController]
-
-    val colorStage = new Stage()
-    colorStage.setScene(new Scene(colorRoot, 400, 300))
-    colorStage.setTitle("Escolha a sua cor")
-    colorStage.setResizable(false)
-    colorStage.showAndWait()
-
-    val selectedColor = colorController.getSelectedColor
-
-    // Now load the bot game with the selected color
-    val loader = new FXMLLoader(getClass.getResource("/BotView.fxml"))
-    val root = loader.load[Parent]()
-    val controller = loader.getController[BotController]
-
-     controller.setOptions(selectedDifficulty, selectedTempo, selectedBoardSize, selectedColor)
-
-     openStage(root, "Konane - Jogar contra o Computador")
-   }
+    val (colorRoot, colorController) = switchTo("/ColorSelectionView.fxml")
+    val ctrl = colorController.asInstanceOf[ColorSelectionController]
+    ctrl.setOnColorSelected((colorOpt: Option[Stone]) => {
+      startBotGame(colorOpt)
+    })
+    showScene(colorRoot)
+  }
 
   @FXML
   private def handleMultiplayer(): Unit = {
-    val loader = new FXMLLoader(getClass.getResource("/MultiplayerView.fxml"))
-    val root = loader.load[Parent]()
-    val controller = loader.getController[MultiplayerController]
-
-     controller.setOptions(selectedTempo, selectedBoardSize)
-
-     openStage(root, "Konane - Multiplayer")
-   }
+    val (multiRoot, multiController) = switchTo("/MultiplayerView.fxml")
+    val ctrl = multiController.asInstanceOf[MultiplayerController]
+    ctrl.setOptions(selectedTempo, selectedBoardSize)
+    ctrl.setPrimaryStage(primaryStage)
+    showScene(multiRoot)
+  }
 
   @FXML
   private def handleLoadGame(): Unit = {
@@ -100,45 +109,47 @@ class MainController {
       val alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION,
         "Nenhum ficheiro de salvamento disponível.", javafx.scene.control.ButtonType.OK)
       alert.showAndWait()
-      return
+    } else {
+      val files = dir.listFiles().filter(_.getName.endsWith(".txt")).toList
+      val choices = files.map(_.getName)
+
+      val choice = new javafx.scene.control.ChoiceDialog(choices.head, choices.asJava)
+      choice.setHeaderText("Escolha ficheiro para carregar")
+      val res = choice.showAndWait()
+
+      res.ifPresent(name => {
+        val f = files.find(_.getName == name).get
+        FileUtils.loadGameFromFile(f.getPath) match {
+          case Some((board, rand, currentPlayer, openCoords, r, c, md, playerColorOpt, savedDifficulty)) =>
+            selectedBoardSize = r
+            selectedDifficulty = savedDifficulty
+
+            val (gameRoot, gameController) = md match {
+              case "HVC" => switchTo("/BotView.fxml")
+              case "HVH" => switchTo("/MultiplayerView.fxml")
+              case _ => switchTo("/BotView.fxml")
+            }
+
+            md match {
+              case "HVC" =>
+                val bc = gameController.asInstanceOf[BotController]
+                bc.loadGame(board, rand, currentPlayer, openCoords, r, c, playerColorOpt, f.getPath, selectedDifficulty, selectedTempo)
+                bc.setPrimaryStage(primaryStage)
+              case "HVH" =>
+                val mc = gameController.asInstanceOf[MultiplayerController]
+                mc.loadGame(board, rand, currentPlayer, openCoords, r, c, f.getPath, selectedTempo)
+                mc.setPrimaryStage(primaryStage)
+              case _ => ()
+            }
+
+            showScene(gameRoot)
+
+          case None =>
+            val alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
+              "Erro ao carregar ficheiro.", javafx.scene.control.ButtonType.OK)
+            alert.showAndWait()
+        }
+      })
     }
-
-    val files = dir.listFiles().filter(_.getName.endsWith(".txt")).toList
-    val choices = files.map(_.getName)
-
-    val choice = new javafx.scene.control.ChoiceDialog(choices.head, choices.asJava)
-    choice.setHeaderText("Escolha ficheiro para carregar")
-    val res = choice.showAndWait()
-
-    res.ifPresent(name => {
-      val f = files.find(_.getName == name).get
-      FileUtils.loadGameFromFile(f.getPath) match {
-        case Some((board, rand, currentPlayer, openCoords, r, c, md, playerColorOpt, savedDifficulty)) =>
-          selectedBoardSize = r
-          selectedDifficulty = savedDifficulty
-          val loader = md match {
-            case "HVC" => new FXMLLoader(getClass.getResource("/BotView.fxml"))
-            case "HVH" => new FXMLLoader(getClass.getResource("/MultiplayerView.fxml"))
-            case _ => new FXMLLoader(getClass.getResource("/BotView.fxml"))
-          }
-          val root = loader.load[Parent]()
-
-          md match {
-            case "HVC" =>
-              val bc = loader.getController[BotController]()
-              bc.loadGame(board, rand, currentPlayer, openCoords, r, c, playerColorOpt, f.getPath, selectedDifficulty, selectedTempo)
-            case "HVH" =>
-              val mc = loader.getController[MultiplayerController]()
-              mc.loadGame(board, rand, currentPlayer, openCoords, r, c, f.getPath, selectedTempo)
-             case _ => ()
-           }
-
-           openStage(root, "Konane - Jogo Carregado")
-        case None =>
-          val alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
-            "Erro ao carregar ficheiro.", javafx.scene.control.ButtonType.OK)
-          alert.showAndWait()
-      }
-    })
   }
 }

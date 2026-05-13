@@ -161,8 +161,8 @@ object GameEngine {
     }
   }
 
-  def handleSave(state: GameState): (GameState, TurnResult) = {
-    (state, SaveRequested(state.board, state.rand, state.currentPlayer, state.openCoords, state.rows, state.cols, state.mode, state.playerColorOpt, state.difficulty))
+  def handleSave(state: GameState, fileName: String): (GameState, TurnResult) = {
+    (state, SaveRequested(state.board, state.rand, state.currentPlayer, state.openCoords, state.rows, state.cols, state.mode, state.playerColorOpt, state.difficulty, fileName))
   }
 
   def handleAction(state: GameState, action: GameAction): (GameState, TurnResult) = action match {
@@ -171,6 +171,6 @@ object GameEngine {
     case StopCapture => handleStopCapture(state)
     case RandomMove => handleRandomMove(state)
     case Undo => handleUndo(state)
-    case Save => handleSave(state)
+    case Save(fileName) => handleSave(state, fileName)
   }
 }

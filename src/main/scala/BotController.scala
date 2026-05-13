@@ -2,7 +2,6 @@ import javafx.animation.{KeyFrame, Timeline}
 import javafx.fxml.FXML
 import javafx.scene.control.*
 import javafx.scene.layout.GridPane
-import javafx.stage.Stage
 import javafx.util.Duration
 
 class BotController extends GameControllerBase {
@@ -31,7 +30,7 @@ class BotController extends GameControllerBase {
     undoButton.setOnAction(_ => handleUndo())
     saveButton.setOnAction(_ => handleSave())
     restartButton.setOnAction(_ => handleRestart())
-    backButton.setOnAction(_ => handleBack())
+    backButton.setOnAction(_ => backToMenu())
   }
 
     def setOptions(diff: String, tempo: Int, boardDim: Int, playerColor: Option[Stone] = Some(Stone.Black)): Unit = {
@@ -232,44 +231,33 @@ class BotController extends GameControllerBase {
      }
    }
 
-   private def handleUndo(): Unit = {
-     if (!captureLocked) {
-       stopTimer()
-       val (ns, res) = GameEngine.handleAction(currentState, Undo)
-       handleTurnResult(ns, res)
-     }
-   }
+    private def handleUndo(): Unit = {
+      if (!captureLocked) {
+        stopTimer()
+        val (ns, res) = GameEngine.handleAction(currentState, Undo)
+        handleTurnResult(ns, res)
+      }
+    }
 
-   private def handleRandomMove(): Unit = {
-     if (!captureLocked && (currentState.playerColorOpt.nonEmpty && currentState.playerColorOpt.contains(currentState.currentPlayer))) {
-       if (!timeExpired) {
-         stopTimer()
-         val (ns, res) = GameEngine.handleAction(currentState, RandomMove)
-         handleTurnResult(ns, res)
-       } else {
-         new Alert(Alert.AlertType.INFORMATION, "Tempo esgotado! Perdeste. O computador vence.", ButtonType.OK).showAndWait()
-         backToMenu()
-       }
-     }
-   }
+    private def handleRandomMove(): Unit = {
+      if (!captureLocked && (currentState.playerColorOpt.nonEmpty && currentState.playerColorOpt.contains(currentState.currentPlayer))) {
+        if (!timeExpired) {
+          stopTimer()
+          val (ns, res) = GameEngine.handleAction(currentState, RandomMove)
+          handleTurnResult(ns, res)
+        } else {
+          new Alert(Alert.AlertType.INFORMATION, "Tempo esgotado! Perdeste. O computador vence.", ButtonType.OK).showAndWait()
+          backToMenu()
+        }
+      }
+    }
 
-  private def handleSave(): Unit = {
-    stopTimer()
-    val (ns, res) = GameEngine.handleAction(currentState, Save)
-    handleTurnResult(ns, res)
-  }
-
-  private def handleRestart(): Unit = {
-    stopTimer()
-    captureLocked = false
-    clearSelection()
-    val playerColor = currentState.playerColorOpt
-    setOptions(difficulty, tempoLimite, boardSize, playerColor)
-  }
-
-   private def handleBack(): Unit = {
+   private def handleRestart(): Unit = {
      stopTimer()
-     boardGrid.getScene.getWindow.asInstanceOf[Stage].close()
+     captureLocked = false
+     clearSelection()
+     val playerColor = currentState.playerColorOpt
+     setOptions(difficulty, tempoLimite, boardSize, playerColor)
    }
 
-  }
+ }

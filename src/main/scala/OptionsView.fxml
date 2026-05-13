@@ -5,7 +5,8 @@
 <?import javafx.geometry.*?>
 
 <VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="OptionsController" spacing="20" alignment="TOP_CENTER" prefWidth="550" prefHeight="500"
+      fx:controller="OptionsController" spacing="20" alignment="CENTER"
+      maxWidth="Infinity" maxHeight="Infinity"
       style="-fx-background-color: #f5e6d3;">
     <padding>
         <Insets top="30" bottom="30" left="40" right="40"/>
@@ -16,27 +17,35 @@
            style="-fx-font-size: 24; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
 
     <!-- Separator -->
-    <Separator/>
+    <Separator maxWidth="460"/>
 
-    <!-- Difficulty Section -->
-    <VBox spacing="8">
-        <Label text="Dificuldade:" style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
-        <ComboBox fx:id="difficultyBox" prefWidth="400" prefHeight="35"
-                  style="-fx-font-size: 12; -fx-padding: 8; -fx-control-inner-background: #f5deb3; -fx-text-fill: #5d4e37;"/>
-    </VBox>
+    <!-- Content block centrado horizontalmente -->
+    <VBox spacing="20" alignment="CENTER_LEFT" maxWidth="460">
 
-    <!-- Board Size Section -->
-    <VBox spacing="8">
-        <Label text="Tamanho do Tabuleiro:" style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
-        <ComboBox fx:id="boardSizeBox" prefWidth="400" prefHeight="35"
-                  style="-fx-font-size: 12; -fx-padding: 8; -fx-control-inner-background: #f5deb3; -fx-text-fill: #5d4e37;"/>
-    </VBox>
+        <!-- Difficulty Section -->
+        <VBox spacing="8">
+            <Label text="Dificuldade:"
+                   style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
+            <ComboBox fx:id="difficultyBox" prefWidth="460" prefHeight="35"
+                      style="-fx-font-size: 12; -fx-padding: 8; -fx-control-inner-background: #f5deb3; -fx-text-fill: #5d4e37;"/>
+        </VBox>
 
-    <!-- Time Section -->
-    <VBox spacing="8">
-        <Label text="Tempo por Jogada (segundos):" style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
-        <ComboBox fx:id="tempoBox" prefWidth="400" prefHeight="35"
-                  style="-fx-font-size: 12; -fx-padding: 8; -fx-control-inner-background: #f5deb3; -fx-text-fill: #5d4e37;"/>
+        <!-- Board Size Section -->
+        <VBox spacing="8">
+            <Label text="Tamanho do Tabuleiro:"
+                   style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
+            <ComboBox fx:id="boardSizeBox" prefWidth="460" prefHeight="35"
+                      style="-fx-font-size: 12; -fx-padding: 8; -fx-control-inner-background: #f5deb3; -fx-text-fill: #5d4e37;"/>
+        </VBox>
+
+        <!-- Time Section -->
+        <VBox spacing="8">
+            <Label text="Tempo por Jogada (segundos):"
+                   style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #5d4e37;"/>
+            <ComboBox fx:id="tempoBox" prefWidth="460" prefHeight="35"
+                      style="-fx-font-size: 12; -fx-padding: 8; -fx-control-inner-background: #f5deb3; -fx-text-fill: #5d4e37;"/>
+        </VBox>
+
     </VBox>
 
     <!-- Spacer -->

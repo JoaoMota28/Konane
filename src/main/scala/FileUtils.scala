@@ -8,17 +8,15 @@ object FileUtils {
     } catch { case _: Exception => () }
   }
 
-  def saveGame(board: Board, rand: MyRandom, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColor: Option[Stone], difficulty: String): Boolean = {
+  def fileNameExists(fileName: String): Boolean = {
+    new java.io.File(s"saves/${fileName}.txt").exists()
+  }
+
+  def saveGame(fileName: String, board: Board, rand: MyRandom, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColor: Option[Stone], difficulty: String): Boolean = {
     try {
       val dir = new java.io.File("saves")
       if (!dir.exists()) dir.mkdir()
-      val existing = dir.listFiles().filter(f => f.getName.startsWith("game_save_") && f.getName.endsWith(".txt")).map(_.getName)
-      val nums = existing.flatMap { name =>
-        val m = "game_save_(\\d+)\\.txt".r
-        name match { case m(n) => scala.util.Try(n.toInt).toOption; case _ => None }
-      }
-      val next = if (nums.isEmpty) 1 else nums.max + 1
-      val file = new java.io.File(dir, s"game_save_${next}.txt")
+      val file = new java.io.File(dir, s"${fileName}.txt")
       val pw = new java.io.PrintWriter(file)
       val content = KonaneLogic.serializeGame(board, rand.seed, currentPlayer, openCoords, rows, cols, mode, playerColor, difficulty)
       pw.println(content)

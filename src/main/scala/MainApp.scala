@@ -8,7 +8,10 @@ class MainApp extends Application {
   override def start(primaryStage: Stage): Unit = {
     val loader = new FXMLLoader(getClass.getResource("/MainView.fxml"))
     val root: Parent = loader.load()
-    val scene = new Scene(root, 500, 450)
+    val controller = loader.getController[MainController]
+    controller.setPrimaryStage(primaryStage)
+
+    val scene = new Scene(root, 900, 750)
     primaryStage.setScene(scene)
     primaryStage.setTitle("Konane")
     primaryStage.setResizable(false)

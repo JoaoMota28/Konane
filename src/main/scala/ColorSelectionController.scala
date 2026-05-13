@@ -1,6 +1,5 @@
 import javafx.fxml.FXML
 import javafx.scene.control.Button
-import javafx.stage.Stage
 
 class ColorSelectionController {
 
@@ -8,7 +7,7 @@ class ColorSelectionController {
   @FXML private var whiteButton: Button = _
   @FXML private var randomButton: Button = _
 
-  private var selectedColor: Option[Stone] = None
+  private var onColorSelected: Option[Stone] => Unit = _ => ()
 
   @FXML
   def initialize(): Unit = {
@@ -17,12 +16,12 @@ class ColorSelectionController {
     randomButton.setOnAction(_ => selectColor(None))
   }
 
-  private def selectColor(color: Option[Stone]): Unit = {
-    selectedColor = color
-    val stage = blackButton.getScene.getWindow.asInstanceOf[Stage]
-    stage.close()
+  def setOnColorSelected(f: Option[Stone] => Unit): Unit = {
+    onColorSelected = f
   }
 
-  def getSelectedColor: Option[Stone] = selectedColor
+  private def selectColor(color: Option[Stone]): Unit = {
+    onColorSelected(color)
+  }
 }
 

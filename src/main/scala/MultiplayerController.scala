@@ -1,7 +1,6 @@
 import javafx.fxml.FXML
 import javafx.scene.control.*
 import javafx.scene.layout.GridPane
-import javafx.stage.Stage
 
 class MultiplayerController extends GameControllerBase {
 
@@ -28,7 +27,7 @@ class MultiplayerController extends GameControllerBase {
     undoButton.setOnAction(_ => handleUndo())
     saveButton.setOnAction(_ => handleSave())
     restartButton.setOnAction(_ => handleRestart())
-    backButton.setOnAction(_ => handleBack())
+    backButton.setOnAction(_ => backToMenu())
   }
 
     def setOptions(tempo: Int, boardDim: Int): Unit = {
@@ -148,52 +147,41 @@ class MultiplayerController extends GameControllerBase {
      */
     override protected def onGameOverMessage(winner: Stone): String = s"Vencedor: $winner! Parabéns!"
 
-   private def handleUndo(): Unit = {
-     if (!captureLocked) {
-       stopTimer()
-       val (ns, res) = GameEngine.handleAction(currentState, Undo)
-       handleTurnResult(ns, res)
-     }
-   }
+    private def handleUndo(): Unit = {
+      if (!captureLocked) {
+        stopTimer()
+        val (ns, res) = GameEngine.handleAction(currentState, Undo)
+        handleTurnResult(ns, res)
+      }
+    }
 
-   private def handleRandomMove(): Unit = {
-     if (!captureLocked) {
-       if (!timeExpired) {
-         stopTimer()
-         val (ns, res) = GameEngine.handleAction(currentState, RandomMove)
-         handleTurnResult(ns, res)
-       } else {
-         val nextPlayer = if (currentState.currentPlayer == Stone.Black) Stone.White else Stone.Black
-         val alert = new Alert(Alert.AlertType.INFORMATION,
-           s"Tempo esgotado! ${currentState.currentPlayer} perdeu. Passa para ${nextPlayer}.",
-           ButtonType.OK)
-         alert.showAndWait()
-         currentState = currentState.copy(currentPlayer = nextPlayer)
-         captureLocked = false
-         clearSelection()
-         buildBoardUI()
-         resetTimer()
-         startTimer()
-       }
-     }
-   }
+    private def handleRandomMove(): Unit = {
+      if (!captureLocked) {
+        if (!timeExpired) {
+          stopTimer()
+          val (ns, res) = GameEngine.handleAction(currentState, RandomMove)
+          handleTurnResult(ns, res)
+        } else {
+          val nextPlayer = if (currentState.currentPlayer == Stone.Black) Stone.White else Stone.Black
+          val alert = new Alert(Alert.AlertType.INFORMATION,
+            s"Tempo esgotado! ${currentState.currentPlayer} perdeu. Passa para ${nextPlayer}.",
+            ButtonType.OK)
+          alert.showAndWait()
+          currentState = currentState.copy(currentPlayer = nextPlayer)
+          captureLocked = false
+          clearSelection()
+          buildBoardUI()
+          resetTimer()
+          startTimer()
+        }
+      }
+    }
 
-  private def handleSave(): Unit = {
-    stopTimer()
-    val (ns, res) = GameEngine.handleAction(currentState, Save)
-    handleTurnResult(ns, res)
-  }
-
-  private def handleRestart(): Unit = {
-    stopTimer()
-    captureLocked = false
-    clearSelection()
-    setOptions(tempoLimite, boardSize)
-  }
-
-   private def handleBack(): Unit = {
+   private def handleRestart(): Unit = {
      stopTimer()
-     boardGrid.getScene.getWindow.asInstanceOf[Stage].close()
+     captureLocked = false
+     clearSelection()
+     setOptions(tempoLimite, boardSize)
    }
 
-  }
+ }

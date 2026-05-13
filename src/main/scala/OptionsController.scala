@@ -1,6 +1,5 @@
 import javafx.fxml.FXML
 import javafx.scene.control.ComboBox
-import javafx.stage.Stage
 
 class OptionsController {
 
@@ -9,6 +8,8 @@ class OptionsController {
   @FXML private var tempoBox: ComboBox[String] = _
   @FXML private var applyButton: javafx.scene.control.Button = _
   @FXML private var cancelButton: javafx.scene.control.Button = _
+
+  private var onClose: () => Unit = () => ()
 
   @FXML
   def initialize(): Unit = {
@@ -21,8 +22,8 @@ class OptionsController {
     tempoBox.getItems.addAll("10", "30", "60", "120")
     tempoBox.setValue("60")
 
-    applyButton.setOnAction(_ => handleSave())
-    cancelButton.setOnAction(_ => handleCancel())
+    applyButton.setOnAction(_ => closeWindow())
+    cancelButton.setOnAction(_ => closeWindow())
   }
 
   def setInitialOptions(difficulty: String, boardSize: Int, tempo: Int): Unit = {
@@ -39,17 +40,13 @@ class OptionsController {
     )
   }
 
-  @FXML
-  private def closeWindow(): Unit = {
-    val stage = difficultyBox.getScene.getWindow.asInstanceOf[Stage]
-    stage.close()
+  def setOnClose(f: () => Unit): Unit = {
+    onClose = f
   }
 
-  // Both buttons use the same handler - user changes are already reflected in the ComboBoxes
   @FXML
-  private def handleSave(): Unit = closeWindow()
-
-  @FXML
-  private def handleCancel(): Unit = closeWindow()
+  private def closeWindow(): Unit = {
+    onClose()
+  }
 }
 

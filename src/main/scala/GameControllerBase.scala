@@ -1,8 +1,10 @@
 import javafx.animation.{Animation, KeyFrame, Timeline}
 import javafx.application.Platform
+import javafx.fxml.FXMLLoader
 import javafx.scene.control.*
 import javafx.scene.image.{Image, ImageView}
 import javafx.scene.layout.GridPane
+import javafx.scene.Parent
 import javafx.stage.Stage
 import javafx.util.Duration
 
@@ -34,6 +36,11 @@ trait GameControllerBase {
 
   protected var timer: Timeline = null
   protected var timeExpired: Boolean = false
+  protected var primaryStage: Stage = _
+
+  def setPrimaryStage(s: Stage): Unit = {
+    primaryStage = s
+  }
 
   /**
    * Build the entire game board UI by clearing and redrawing all cells.
@@ -172,12 +179,42 @@ trait GameControllerBase {
     if (f.exists()) new Image(f.toURI.toString) else new Image(getClass.getResourceAsStream("/Black.png"))
   }
 
-  /**
-   * Close the game window and return to menu.
-   */
-  protected def backToMenu(): Unit = {
-    boardGrid.getScene.getWindow.asInstanceOf[Stage].close()
-  }
+   /**
+    * Close the game window and return to menu.
+    */
+   protected def backToMenu(): Unit = {
+     val loader = new FXMLLoader(getClass.getResource("/MainView.fxml"))
+     val root = loader.load[Parent]()
+     val ctrl = loader.getController[MainController]
+     ctrl.setPrimaryStage(primaryStage)
+     primaryStage.getScene.setRoot(root)
+   }
+
+   /**
+    * Handle save action - shows dialog for filename selection.
+    */
+   protected def handleSave(): Unit = {
+     stopTimer()
+     val dialog = new javafx.scene.control.TextInputDialog()
+     dialog.setTitle("Guardar Jogo")
+     dialog.setHeaderText("Escolhe um nome para o ficheiro de gravação:")
+     dialog.setContentText("Nome:")
+     val result = dialog.showAndWait()
+     if (!result.isPresent || result.get().trim.isEmpty) {
+       resetTimer()
+       startTimer()
+     } else {
+       val name = result.get().trim
+       if (FileUtils.fileNameExists(name)) {
+         new Alert(Alert.AlertType.ERROR, "Já existe um ficheiro com esse nome. Escolhe outro nome.", ButtonType.OK).showAndWait()
+         resetTimer()
+         startTimer()
+       } else {
+         val (ns, res) = GameEngine.handleAction(currentState, Save(name))
+         handleTurnResult(ns, res)
+       }
+     }
+   }
 
   /**
    * Initialize game state and UI after setup or load.
@@ -237,14 +274,14 @@ trait GameControllerBase {
           backToMenu()
         })
 
-      case SaveRequested(b, r, p, open, rr, cc, md, pcol, diff) =>
-        val ok = FileUtils.saveGame(b, r, p, open, rr, cc, md, pcol, diff)
-        val alert = if (!ok)
-          new Alert(Alert.AlertType.ERROR, "Falha ao salvar.", ButtonType.OK)
-        else
-          new Alert(Alert.AlertType.INFORMATION, "Jogo salvo com sucesso!", ButtonType.OK)
-        alert.showAndWait()
-        if (ok) backToMenu()
+       case SaveRequested(b, r, p, open, rr, cc, md, pcol, diff, fileName) =>
+         val ok = FileUtils.saveGame(fileName, b, r, p, open, rr, cc, md, pcol, diff)
+         val alert = if (!ok)
+           new Alert(Alert.AlertType.ERROR, "Falha ao salvar.", ButtonType.OK)
+         else
+           new Alert(Alert.AlertType.INFORMATION, "Jogo salvo com sucesso!", ButtonType.OK)
+         alert.showAndWait()
+         if (ok) backToMenu()
 
       case _ => ()
     }
