@@ -32,6 +32,7 @@ object KonaneTUI {
   /**
    * Pure helper to determine if the current player is controlled by a human.
    * Derivation: mode + playerColorOpt + currentPlayer → boolean
+   * Test
    */
   private def isHumanTurn(state: GameState): Boolean = state.mode match {
     case "HVH" => true  // In HVH mode, both players are always human
