@@ -49,9 +49,9 @@ object KonaneLogic {
     (board - blackCoord - whiteCoord, List(blackCoord, whiteCoord), r2)
   }
 
-  def getRows(board: Board): Int = if (board.isEmpty) 0 else board.keys.map(_._1).max + 1
+  private def getRows(board: Board): Int = if (board.isEmpty) 0 else board.keys.map(_._1).max + 1
 
-  def getCols(board: Board): Int = if (board.isEmpty) 0 else board.keys.map(_._2).max + 1
+  private def getCols(board: Board): Int = if (board.isEmpty) 0 else board.keys.map(_._2).max + 1
 
   //T1
   def randomMove(lstOpenCoords: List[Coord2D], rand: MyRandom): (Coord2D, MyRandom) = {
@@ -81,7 +81,7 @@ object KonaneLogic {
     }
   }
 
-  def executeMove(board: Board, player: Stone,
+  private def executeMove(board: Board, player: Stone,
                   from: Coord2D, to: Coord2D, mid: Coord2D,
                   lstOpen: List[Coord2D]): (Board, List[Coord2D]) = {
     val newBoard = board - from - mid + (to -> player)
@@ -134,10 +134,10 @@ object KonaneLogic {
     val cols = getCols(board)
 
     if (isValidMove(board, player, coordFrom, coordTo, rows, cols)) {
-        val (newBoard, newOpen) = executeMove(board, player, coordFrom, coordTo, mid, lstOpenCoords)
-        (Some(newBoard), newOpen)
+      val (newBoard, newOpen) = executeMove(board, player, coordFrom, coordTo, mid, lstOpenCoords)
+      (Some(newBoard), newOpen)
     } else {
-        (None, lstOpenCoords)
+      (None, lstOpenCoords)
     }
   }
 
@@ -156,7 +156,7 @@ object KonaneLogic {
 
     loop(allCoords, Nil)
   }
-  
+
   def getValidMovesForPiece(board: Board, player: Stone, from: Coord2D, rows: Int, cols: Int): List[Coord2D] = {
     val directions = List((2, 0), (-2, 0), (0, 2), (0, -2))
 
@@ -172,10 +172,10 @@ object KonaneLogic {
     loop(directions, Nil)
   }
 
-  def canMoveAgain(board: Board, player: Stone, from: Coord2D, rows: Int, cols: Int): Boolean =
+  private def canMoveAgain(board: Board, player: Stone, from: Coord2D, rows: Int, cols: Int): Boolean =
     getValidMovesForPiece(board, player, from, rows, cols).nonEmpty
 
-  def getDestinations(mvs: List[(Coord2D, Coord2D)]): List[Coord2D] = {
+  private def getDestinations(mvs: List[(Coord2D, Coord2D)]): List[Coord2D] = {
 
     @tailrec
     def loop(remaining: List[(Coord2D, Coord2D)], acc: List[Coord2D]): List[Coord2D] = remaining match {
@@ -245,58 +245,155 @@ object KonaneLogic {
   }
 
   // Serialization / parsing of saved game content (pure):
-  def serializeGame(board: Board, randSeed: Long, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColorOpt: Option[Stone], difficulty: String): String = {
-    val header = s"${rows},${cols},${currentPlayer},${randSeed},${mode},${playerColorOpt.map{case Stone.Black=>"Black"; case Stone.White=>"White"}.getOrElse("None") },${difficulty}"
-    val boardLines = board.toList.map { case ((r, c), stone) =>
+  // Serialise a single board snapshot (used for current state and each history entry).
+  private def serializeSnapshot(b: Board, randSeed: Long, player: Stone, open: List[Coord2D]): List[String] = {
+    val playerStr = player match { case Stone.Black => "Black"; case Stone.White => "White" }
+    val meta = s"META,${randSeed},${playerStr}"
+    val boardLines = b.toList.map { case ((r, c), stone) =>
       val s = stone match { case Stone.Black => "B"; case Stone.White => "W" }
       s"${r},${c},${s}"
     }
-    val openLines = openCoords.map { case (r, c) => s"${r},${c}" }
-    (header :: "BOARD" :: boardLines ::: "OPEN" :: openLines).mkString("\n")
+    val openLines = open.map { case (r, c) => s"${r},${c}" }
+    meta :: "BOARD" :: boardLines ::: "OPEN" :: openLines
   }
 
-  def parseGameContent(content: String): Option[(Board, MyRandom, Stone, List[Coord2D], Int, Int, String, Option[Stone], String)] = {
+  def serializeGame(board: Board, randSeed: Long, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColorOpt: Option[Stone], difficulty: String, history: List[(Board, MyRandom, Stone, List[Coord2D])]): String = {
+    val header = s"${rows},${cols},${currentPlayer},${randSeed},${mode},${playerColorOpt.map{case Stone.Black=>"Black"; case Stone.White=>"White"}.getOrElse("None") },${difficulty}"
+    val currentSnapshot = serializeSnapshot(board, randSeed, currentPlayer, openCoords)
+    // History is stored oldest-first (head of list is most recent, so we reverse)
+    val historySection = if (history.isEmpty) List("HISTORY", "END_HISTORY")
+    else {
+      val entryLines = history.reverse.foldLeft(List.empty[String]) { case (acc, (hb, hr, hp, ho)) =>
+        acc ::: ("ENTRY" :: serializeSnapshot(hb, hr.seed, hp, ho))
+      }
+      "HISTORY" :: entryLines ::: List("END_HISTORY")
+    }
+    (header :: currentSnapshot ::: historySection).mkString("\n")
+  }
+
+  // Parse a board map from a list of "r,c,S" strings (accumulated in reverse).
+  private def boardFromRevList(lst: List[((Int,Int), Stone)]): Board = lst.reverse.toMap.par
+
+  // Parse open coords from a list of (r,c) pairs (accumulated in reverse).
+  private def openFromRevList(lst: List[(Int,Int)]): List[Coord2D] = lst.reverse
+
+  def parseGameContent(content: String): Option[(Board, MyRandom, Stone, List[Coord2D], Int, Int, String, Option[Stone], String, List[(Board, MyRandom, Stone, List[Coord2D])])] = {
     try {
-      val lines = content.split("\\r?\\n").toList
+      val rawLines = content.split("\\r?\\n").toList
+      val lines = rawLines.map(_.trim).filter(_.nonEmpty)
       if (lines.isEmpty) return None
+
       val header = lines.head.split(',').map(_.trim).toList
-      // expected header: rows,cols,currentPlayer,randSeed,mode,playerColor,difficulty
       header match {
-          case rStr :: cStr :: currentPlayerStr :: randSeedStr :: modeStr :: playerColorStr :: difficultyStr :: Nil =>
-          val r = rStr.toInt
-          val c = cStr.toInt
+        case rStr :: cStr :: currentPlayerStr :: randSeedStr :: modeStr :: playerColorStr :: difficultyStr :: Nil =>
+          val rows = rStr.toInt
+          val cols = cStr.toInt
           val currentPlayer = if (currentPlayerStr == "Black") Stone.Black else Stone.White
           val randSeed = randSeedStr.toLong
           val mode = modeStr
           val playerColorOpt = playerColorStr match { case "Black" => Some(Stone.Black); case "White" => Some(Stone.White); case _ => None }
           val difficulty = difficultyStr
 
-          val (_, boardListRev, openListRev) = lines.drop(1).foldLeft[(String, List[((Int, Int), Stone)], List[(Int, Int)])]( ("HEADER", List.empty[((Int, Int), Stone)], List.empty[(Int, Int)]) ) {
-            case ((section, boardAcc, openAcc), line) if line == "BOARD" => ("BOARD", boardAcc, openAcc)
-            case ((section, boardAcc, openAcc), line) if line == "OPEN" => ("OPEN", boardAcc, openAcc)
-            case ((section, boardAcc, openAcc), line) if section == "BOARD" =>
+          // Helper to parse board cells from a slice of lines
+          def parseBoardLines(bs: List[String]): List[((Int, Int), Stone)] =
+            bs.flatMap { line =>
               val parts = line.split(',').map(_.trim).toList
               parts match {
-                case rStr2 :: cStr2 :: sStr :: Nil =>
-                  val rr = rStr2.toInt
-                  val cc = cStr2.toInt
+                case rr :: cc :: sStr :: Nil =>
                   val st = if (sStr == "B") Stone.Black else Stone.White
-                  ("BOARD", ((rr, cc), st) :: boardAcc, openAcc)
-                case _ => (section, boardAcc, openAcc)
+                  Some(((rr.toInt, cc.toInt), st))
+                case _ => None
               }
-            case ((section, boardAcc, openAcc), line) if section == "OPEN" =>
+            }.reverse
+
+          def parseOpenLines(os: List[String]): List[Coord2D] =
+            os.flatMap { line =>
               val parts = line.split(',').map(_.trim).toList
-              parts match {
-                case rStr2 :: cStr2 :: Nil => ("OPEN", boardAcc, (rStr2.toInt, cStr2.toInt) :: openAcc)
-                case _ => (section, boardAcc, openAcc)
-              }
-            case ((section, boardAcc, openAcc), _) => (section, boardAcc, openAcc)
+              parts match { case rr :: cc :: Nil => Some((rr.toInt, cc.toInt)); case _ => None }
+            }.reverse
+
+          // Locate top-level BOARD and OPEN for current snapshot
+          val boardIdx = lines.indexWhere(_ == "BOARD", 1)
+          if (boardIdx < 0) return None
+          val openIdx = lines.indexWhere(_ == "OPEN", boardIdx + 1)
+          if (openIdx < 0) return None
+          val boardLines = lines.slice(boardIdx + 1, openIdx)
+          val openLines = {
+            // find end of open section (HISTORY or end)
+            val nextTagIdx = lines.indexWhere(l => l == "HISTORY" || l == "END_HISTORY", openIdx + 1)
+            val endIdx = if (nextTagIdx < 0) lines.length else nextTagIdx
+            lines.slice(openIdx + 1, endIdx)
           }
 
-          val board = boardListRev.reverse.toMap.par
-          val openCoords = openListRev.reverse
+          val board = boardFromRevList(parseBoardLines(boardLines))
+          val openCoords = parseOpenLines(openLines)
           val rand = MyRandom(randSeed)
-          Some((board, rand, currentPlayer, openCoords, r, c, mode, playerColorOpt, difficulty))
+
+          // Parse HISTORY section if present
+          val historyStart = lines.indexWhere(_ == "HISTORY", openIdx + 1)
+          val historyEntries: List[(Board, MyRandom, Stone, List[Coord2D])] =
+            if (historyStart < 0) Nil
+            else {
+              // lines after HISTORY
+              val after = lines.drop(historyStart + 1)
+
+              // split into entry blocks between ENTRY markers and END_HISTORY
+              @tailrec
+              def splitEntries(rem: List[String], acc: List[List[String]]): List[List[String]] = rem match {
+                case Nil => acc.reverse
+                case "END_HISTORY" :: _ => acc.reverse
+                case "ENTRY" :: tail => {
+                  // collect until next ENTRY or END_HISTORY
+                  @tailrec
+                  def takeBlock(xs: List[String], collected: List[String]): (List[String], List[String]) = xs match {
+                    case Nil => (collected.reverse, Nil)
+                    case h :: t if h == "ENTRY" || h == "END_HISTORY" => (collected.reverse, xs)
+                    case h :: t => takeBlock(t, h :: collected)
+                  }
+                  val (block, rest) = takeBlock(tail, Nil)
+                  splitEntries(rest, block :: acc)
+                }
+                case _ :: tail => splitEntries(tail, acc)
+              }
+
+              val blocks = splitEntries(after, Nil)
+
+              // parse one block into an entry
+              def parseBlock(block: List[String]): Option[(Board, MyRandom, Stone, List[Coord2D])] = {
+                if (block.isEmpty) return None
+                // optional META at start
+                val (metaOpt, rest1) = block match {
+                  case h :: t if h.startsWith("META,") =>
+                    val parts = h.split(',').map(_.trim).toList
+                    parts match {
+                      case _ :: seedStr :: playerStr :: Nil =>
+                        val player = if (playerStr == "Black") Stone.Black else Stone.White
+                        (Some((seedStr.toLong, player)), t)
+                      case _ => (None, block)
+                    }
+                  case _ => (None, block)
+                }
+
+                val bIdx = rest1.indexWhere(_ == "BOARD")
+                if (bIdx < 0) return None
+                val oIdx = rest1.indexWhere(_ == "OPEN", bIdx + 1)
+                if (oIdx < 0) return None
+                val bLines = rest1.slice(bIdx + 1, oIdx)
+                val oLines = rest1.slice(oIdx + 1, rest1.length)
+                val b = boardFromRevList(parseBoardLines(bLines))
+                val o = parseOpenLines(oLines)
+                val (seed, player) = metaOpt.getOrElse((0L, Stone.Black))
+                Some((b, MyRandom(seed), player, o))
+              }
+
+              blocks.flatMap(parseBlock)
+            }
+
+          // historyEntries is oldest-first (file order). Convert to newest-first (head is most recent)
+          val historyNewestFirst = historyEntries.reverse
+
+          Some((board, rand, currentPlayer, openCoords, rows, cols, mode, playerColorOpt, difficulty, historyNewestFirst))
+
         case _ => None
       }
     } catch {
@@ -305,8 +402,8 @@ object KonaneLogic {
   }
 
   // Accept only known time options (in milliseconds)
-  val acceptedTimeOptions: Set[Long] = Set(10000L, 30000L, 60000L, 120000L, 300000L, 600000L)
-  def isAcceptedTimeMillis(ms: Long): Boolean = acceptedTimeOptions.contains(ms)
+  private val acceptedTimeOptions: Set[Long] = Set(10000L, 30000L, 60000L, 120000L, 300000L, 600000L)
+  private def isAcceptedTimeMillis(ms: Long): Boolean = acceptedTimeOptions.contains(ms)
 
   def parseInput(input: String): Option[Coord2D] = {
     val trimmed = input.trim

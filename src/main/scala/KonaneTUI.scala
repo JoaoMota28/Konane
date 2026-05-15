@@ -5,7 +5,7 @@ object KonaneTUI {
   import FileUtils.*
 
   @tailrec
-  def readNonEmptyTrimmed(): String = {
+  private def readNonEmptyTrimmed(): String = {
     val s = scala.io.StdIn.readLine()
     if (s == null) readNonEmptyTrimmed()
     else {
@@ -15,7 +15,7 @@ object KonaneTUI {
   }
 
   @tailrec
-  def readYesNo(prompt: String): Boolean = {
+  private def readYesNo(prompt: String): Boolean = {
     print(prompt)
     val inRaw = scala.io.StdIn.readLine()
     val in = if (inRaw == null) "" else inRaw.trim.toLowerCase
@@ -97,10 +97,10 @@ object KonaneTUI {
         case Some(n) if n >= 1 && n <= files.length =>
           val f = files(n - 1)
           FileUtils.loadGameFromFile(f.getPath) match {
-             case Some((board, rand, currentPlayer, openCoords, r, c, mode, playerColorOpt, savedDifficulty)) =>
-               println("--- JOGO CARREGADO ---")
-               val loadedState = GameState(board = board, rand = rand, currentPlayer = currentPlayer, openCoords = openCoords, rows = r, cols = c, history = Nil, mode = mode, playerColorOpt = playerColorOpt, loadedSavePath = Some(f.getPath), timeLimitMillis = timeLimitMillis, difficulty = savedDifficulty, pendingCapture = None)
-               gameLoopState(loadedState)
+              case Some((board, rand, currentPlayer, openCoords, r, c, mode, playerColorOpt, savedDifficulty, savedHistory)) =>
+                println("--- JOGO CARREGADO ---")
+                val loadedState = GameState(board = board, rand = rand, currentPlayer = currentPlayer, openCoords = openCoords, rows = r, cols = c, history = savedHistory, mode = mode, playerColorOpt = playerColorOpt, timeLimitMillis = timeLimitMillis, difficulty = savedDifficulty, pendingCapture = None)
+                gameLoopState(loadedState)
             case None => println("Erro ao carregar ficheiro."); menuLoop(rows, cols, timeLimitMillis, difficulty)
           }
         case _ => println("Selecao invalida."); menuLoop(rows, cols, timeLimitMillis, difficulty)
@@ -124,7 +124,7 @@ object KonaneTUI {
     val seed = MyRandom(System.currentTimeMillis())
     val (boardReady, openCoords, randAfterSetup) = GameEngine.setupBoard(GameEngine.initBoard(rows, cols), rows, cols, seed)
     println("--- JOGO INICIADO (Player vs Player) ---")
-    val initialState = GameState(board = boardReady, rand = randAfterSetup, currentPlayer = Stone.Black, openCoords = openCoords, rows = rows, cols = cols, history = Nil, mode = "HVH", playerColorOpt = None, loadedSavePath = None, timeLimitMillis = timeLimitMillis, difficulty = difficulty, pendingCapture = None)
+    val initialState = GameState(board = boardReady, rand = randAfterSetup, currentPlayer = Stone.Black, openCoords = openCoords, rows = rows, cols = cols, history = Nil, mode = "HVH", playerColorOpt = None, timeLimitMillis = timeLimitMillis, difficulty = difficulty, pendingCapture = None)
     gameLoopState(initialState)
   }
 
@@ -193,11 +193,11 @@ object KonaneTUI {
     case other => s"${other / 1000} seconds"
   }
 
-   private def startNewGame(rows: Int, cols: Int, playerPlaysBlack: Boolean, seed: MyRandom, timeLimitMillis: Long, difficulty: String): Unit = {
-     val (boardReady, openCoords, randAfterSetup) = GameEngine.setupBoard(GameEngine.initBoard(rows, cols), rows, cols, seed)
-     val playerColor = if (playerPlaysBlack) Some(Stone.Black) else Some(Stone.White)
-     val mode = "HVC"
-     println("--- JOGO INICIADO ---")
+  private def startNewGame(rows: Int, cols: Int, playerPlaysBlack: Boolean, seed: MyRandom, timeLimitMillis: Long, difficulty: String): Unit = {
+    val (boardReady, openCoords, randAfterSetup) = GameEngine.setupBoard(GameEngine.initBoard(rows, cols), rows, cols, seed)
+    val playerColor = if (playerPlaysBlack) Some(Stone.Black) else Some(Stone.White)
+    val mode = "HVC"
+    println("--- JOGO INICIADO ---")
     val initialState = GameState(
       board = boardReady,
       rand = randAfterSetup,
@@ -208,7 +208,6 @@ object KonaneTUI {
       history = Nil,
       mode = mode,
       playerColorOpt = playerColor,
-      loadedSavePath = None,
       timeLimitMillis = timeLimitMillis,
       difficulty = difficulty,
       pendingCapture = None
@@ -219,7 +218,6 @@ object KonaneTUI {
   // consolidated helpers to remove repeated code
   private def handleTimeout(state: GameState): Unit = {
     println("Tempo esgotado! Jogador perdeu por tempo.")
-    state.loadedSavePath.foreach(FileUtils.deleteIfExists)
     menuLoop(state.rows, state.cols, state.timeLimitMillis, state.difficulty)
   }
 
@@ -327,14 +325,14 @@ object KonaneTUI {
     }
   }
 
-  def gameLoopState(initial: GameState): Unit = {
+  private def gameLoopState(initial: GameState): Unit = {
     @tailrec
     def loop(state: GameState): Unit = {
       println(GameEngine.boardToString(state.board, state.rows, state.cols))
 
       KonaneLogic.getWinner(state.board, state.currentPlayer, state.rows, state.cols) match {
         case Some(winner) =>
-          handleGameWin(winner, state.loadedSavePath)
+          handleGameWin(winner)
         case None =>
           val isHuman = isHumanTurn(state)
           if (isHuman) {
@@ -347,11 +345,9 @@ object KonaneTUI {
                 cmd match {
                   case "exit" =>
                     println("Voltando ao menu...")
-                    state.loadedSavePath.foreach(FileUtils.deleteIfExists)
                     menuLoop(state.rows, state.cols, state.timeLimitMillis, state.difficulty)
                   case "restart" if state.mode == "HVC" =>
                     println("Recomeçando o jogo...")
-                    state.loadedSavePath.foreach(FileUtils.deleteIfExists)
                     val playerPlaysBlack = state.playerColorOpt.contains(Stone.Black)
                     startNewGame(state.rows, state.cols, playerPlaysBlack, state.rand, state.timeLimitMillis, state.difficulty)
                   case _ =>
@@ -375,87 +371,81 @@ object KonaneTUI {
     loop(initial)
   }
 
-   /**
-    * Handle human input commands and moves.
-    * Returns the state to use for the next iteration.
-    */
-   private def handleHumanInput(cmd: String, state: GameState, startTime: Long): GameState = {
-     cmd match {
-       case "undo" =>
-         GameEngine.handleAction(state, Undo) match {
-           case (ns, InvalidAction(msg)) => println(msg); ns
-           case (ns, _) => ns
-         }
-       case "save" =>
-         @tailrec
-         def askFileName(): String = {
-           print("Nome do ficheiro de gravação: ")
-           val rawName = readNonEmptyTrimmed()
+  /**
+   * Handle human input commands and moves.
+   * Returns the state to use for the next iteration.
+   */
+  private def handleHumanInput(cmd: String, state: GameState, startTime: Long): GameState = {
+    cmd match {
+      case "undo" =>
+        GameEngine.handleAction(state, Undo) match {
+          case (ns, InvalidAction(msg)) => println(msg); ns
+          case (ns, _) => ns
+        }
+      case "save" =>
+        @tailrec
+        def askFileName(): String = {
+          print("Nome do ficheiro de gravação: ")
+          val rawName = readNonEmptyTrimmed()
 
-           // Check for invalid characters
-           val invalidChars = Set('/', '\\', ':', '*', '?', '"', '<', '>', '|')
-           if (rawName.exists(invalidChars.contains(_))) {
-             println("Nome inválido. Tenta novamente.")
-             askFileName()
-           } else if (FileUtils.fileNameExists(rawName)) {
-             println("Já existe um ficheiro com esse nome. Escolhe outro nome.")
-             askFileName()
-           } else {
-             rawName
-           }
-         }
+          // Check for invalid characters
+          val invalidChars = Set('/', '\\', ':', '*', '?', '"', '<', '>', '|')
+          if (rawName.exists(invalidChars.contains(_))) {
+            println("Nome inválido. Tenta novamente.")
+            askFileName()
+          } else if (FileUtils.fileNameExists(rawName)) {
+            println("Já existe um ficheiro com esse nome. Escolhe outro nome.")
+            askFileName()
+          } else {
+            rawName
+          }
+        }
 
-         val fileName = askFileName()
-         GameEngine.handleAction(state, Save(fileName)) match {
-           case (ns, SaveRequested(b, r, cp, open, rr, cc, mode, pcol, diff, fn)) =>
-             val ok = FileUtils.saveGame(fn, b, r, cp, open, rr, cc, mode, pcol, diff)
-             if (!ok) println("Falha ao salvar. Tente novamente.")
-             ns
-           case (ns, _) => println("Nao foi possivel preparar save."); ns
-         }
-       case "random" =>
-         GameEngine.handleAction(state, RandomMove) match {
-           case (ns, InvalidAction(msg)) => println(msg); ns
-           case (s, CaptureRequired(sState, _, opts)) =>
-             handleCaptureChain(true, sState, opts, state, startTime)
-           case (ns, MoveOk(s2)) => s2
-           case (ns, _) => ns
-         }
-       case other =>
-         KonaneLogic.parseInput(other) match {
-           case Some(from) =>
-             print("Para onde: ")
-             timedReadNonEmptyTrimmed(startTime, state.timeLimitMillis) match {
-               case None => handleTimeout(state); state
-               case Some(toStr) =>
-                 KonaneLogic.parseInput(toStr) match {
-                   case Some(to) =>
-                     GameEngine.handleAction(state, MakeMove(from, to)) match {
-                       case (ns, InvalidAction(msg)) => println(msg); ns
-                       case (s, CaptureRequired(sState, _, opts)) =>
-                         handleCaptureChain(true, sState, opts, state, startTime)
-                       case (ns, MoveOk(s2)) => s2
-                       case (ns, _) => ns
-                     }
-                   case None => println("Entrada invalida para destino."); state
-                 }
-             }
-           case None => println("Entrada invalida."); state
-         }
-     }
-   }
+        val fileName = askFileName()
+        GameEngine.handleAction(state, Save(fileName)) match {
+          case (ns, SaveRequested(b, r, cp, open, rr, cc, mode, pcol, diff, fn, hist)) =>
+            val ok = FileUtils.saveGame(fn, b, r, cp, open, rr, cc, mode, pcol, diff, hist)
+            if (!ok) println("Falha ao salvar. Tente novamente.")
+            ns
+          case (ns, _) => println("Nao foi possivel preparar save."); ns
+        }
+      case "random" =>
+        GameEngine.handleAction(state, RandomMove) match {
+          case (ns, InvalidAction(msg)) => println(msg); ns
+          case (s, CaptureRequired(sState, _, opts)) =>
+            handleCaptureChain(true, sState, opts, state, startTime)
+          case (ns, MoveOk(s2)) => s2
+          case (ns, _) => ns
+        }
+      case other =>
+        KonaneLogic.parseInput(other) match {
+          case Some(from) =>
+            print("Para onde: ")
+            timedReadNonEmptyTrimmed(startTime, state.timeLimitMillis) match {
+              case None => handleTimeout(state); state
+              case Some(toStr) =>
+                KonaneLogic.parseInput(toStr) match {
+                  case Some(to) =>
+                    GameEngine.handleAction(state, MakeMove(from, to)) match {
+                      case (ns, InvalidAction(msg)) => println(msg); ns
+                      case (s, CaptureRequired(sState, _, opts)) =>
+                        handleCaptureChain(true, sState, opts, state, startTime)
+                      case (ns, MoveOk(s2)) => s2
+                      case (ns, _) => ns
+                    }
+                  case None => println("Entrada invalida para destino."); state
+                }
+            }
+          case None => println("Entrada invalida."); state
+        }
+    }
+  }
 
-  private def handleGameWin(winner: Stone, loadedSavePath: Option[String]): Unit = {
+  private def handleGameWin(winner: Stone): Unit = {
     val winnerName = if (winner == Stone.Black) "Pretas (B)" else "Brancas (W)"
     println("--- FIM DE JOGO ---")
     println("Vencedor: " + winnerName)
-    loadedSavePath match {
-      case Some(path) => FileUtils.deleteIfExists(path)
-      case None => ()
-    }
   }
 
 
 }
-
-

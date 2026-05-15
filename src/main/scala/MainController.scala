@@ -1,6 +1,6 @@
 import javafx.application.Platform
 import javafx.fxml.{FXML, FXMLLoader}
-import javafx.scene.control.Button
+import javafx.scene.control.{Button, Alert, ButtonType, ChoiceDialog}
 import javafx.scene.{Parent, Scene}
 import javafx.stage.Stage
 import scala.jdk.CollectionConverters.*
@@ -17,6 +17,7 @@ class MainController {
   private var selectedBoardSize: Int = 8
   private var selectedTempo: Int = 60
   private var primaryStage: Stage = _
+  private var mainMenuRoot: Parent = _
 
   def setPrimaryStage(s: Stage): Unit = {
     primaryStage = s
@@ -39,13 +40,11 @@ class MainController {
   }
 
   /**
-   * Return to main menu.
+   * Return to main menu by restoring the cached root of this controller.
+   * This preserves all selected options on this instance.
    */
   private def showMainMenu(): Unit = {
-    val (menuRoot, menuController) = switchTo("/MainView.fxml")
-    val ctrl = menuController.asInstanceOf[MainController]
-    ctrl.setPrimaryStage(primaryStage)
-    showScene(menuRoot)
+    showScene(mainMenuRoot)
   }
 
   /**
@@ -56,6 +55,7 @@ class MainController {
     val ctrl = botController.asInstanceOf[BotController]
     ctrl.setOptions(selectedDifficulty, selectedTempo, selectedBoardSize, colorOpt)
     ctrl.setPrimaryStage(primaryStage)
+    ctrl.setBackToMenuFn(() => showMainMenu())
     showScene(botRoot)
   }
 
@@ -66,6 +66,9 @@ class MainController {
     loadButton.setOnAction(_ => handleLoadGame())
     optionsButton.setOnAction(_ => handleOptions())
     exitButton.setOnAction(_ => Platform.exit())
+    // Cache this view's root so returning from sub-screens reuses this
+    // controller instance (preserving selectedDifficulty/Size/Tempo).
+    Platform.runLater(() => mainMenuRoot = botButton.getScene.getRoot)
   }
 
   @FXML
@@ -99,6 +102,7 @@ class MainController {
     val ctrl = multiController.asInstanceOf[MultiplayerController]
     ctrl.setOptions(selectedTempo, selectedBoardSize)
     ctrl.setPrimaryStage(primaryStage)
+    ctrl.setBackToMenuFn(() => showMainMenu())
     showScene(multiRoot)
   }
 
@@ -106,50 +110,60 @@ class MainController {
   private def handleLoadGame(): Unit = {
     val dir = new java.io.File("saves")
     if (!dir.exists() || dir.listFiles().isEmpty) {
-      val alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION,
-        "Nenhum ficheiro de salvamento disponível.", javafx.scene.control.ButtonType.OK)
-      alert.showAndWait()
+      showAlert("Nenhum ficheiro de salvamento disponível.", Alert.AlertType.INFORMATION)
     } else {
       val files = dir.listFiles().filter(_.getName.endsWith(".txt")).toList
-      val choices = files.map(_.getName)
-
-      val choice = new javafx.scene.control.ChoiceDialog(choices.head, choices.asJava)
-      choice.setHeaderText("Escolha ficheiro para carregar")
-      val res = choice.showAndWait()
-
-      res.ifPresent(name => {
-        val f = files.find(_.getName == name).get
-        FileUtils.loadGameFromFile(f.getPath) match {
-          case Some((board, rand, currentPlayer, openCoords, r, c, md, playerColorOpt, savedDifficulty)) =>
-            selectedBoardSize = r
-            selectedDifficulty = savedDifficulty
-
-            val (gameRoot, gameController) = md match {
-              case "HVC" => switchTo("/BotView.fxml")
-              case "HVH" => switchTo("/MultiplayerView.fxml")
-              case _ => switchTo("/BotView.fxml")
-            }
-
-            md match {
-              case "HVC" =>
-                val bc = gameController.asInstanceOf[BotController]
-                bc.loadGame(board, rand, currentPlayer, openCoords, r, c, playerColorOpt, f.getPath, selectedDifficulty, selectedTempo)
-                bc.setPrimaryStage(primaryStage)
-              case "HVH" =>
-                val mc = gameController.asInstanceOf[MultiplayerController]
-                mc.loadGame(board, rand, currentPlayer, openCoords, r, c, f.getPath, selectedTempo)
-                mc.setPrimaryStage(primaryStage)
-              case _ => ()
-            }
-
-            showScene(gameRoot)
-
-          case None =>
-            val alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
-              "Erro ao carregar ficheiro.", javafx.scene.control.ButtonType.OK)
-            alert.showAndWait()
-        }
-      })
+      if (files.isEmpty) {
+        showAlert("Nenhum ficheiro de salvamento disponível.", Alert.AlertType.INFORMATION)
+      } else {
+        val choices = files.map(_.getName)
+        val choice = new ChoiceDialog(choices.head, choices.asJava)
+        choice.setHeaderText("Escolha ficheiro para carregar")
+        val res = choice.showAndWait()
+        res.ifPresent(name => loadSelectedGame(files.find(_.getName == name).get))
+      }
     }
+  }
+
+  private def loadSelectedGame(file: java.io.File): Unit = {
+    FileUtils.loadGameFromFile(file.getPath) match {
+      case Some((board, rand, currentPlayer, openCoords, r, c, md, playerColorOpt, savedDifficulty, savedHistory)) =>
+        selectedBoardSize = r
+        selectedDifficulty = savedDifficulty
+        launchGameWithMode(md, board, rand, currentPlayer, openCoords, r, c, playerColorOpt, savedDifficulty, file.getPath, savedHistory)
+      case None =>
+        showAlert("Erro ao carregar ficheiro.", Alert.AlertType.ERROR)
+    }
+  }
+
+  private def launchGameWithMode(md: String, board: Board, rand: MyRandom, currentPlayer: Stone,
+                                 openCoords: List[Coord2D], r: Int, c: Int, playerColorOpt: Option[Stone],
+                                 difficulty: String, savePath: String,
+                                 history: List[(Board, MyRandom, Stone, List[Coord2D])] = Nil): Unit = {
+    val (gameRoot, gameController) = md match {
+      case "HVC" => switchTo("/BotView.fxml")
+      case "HVH" => switchTo("/MultiplayerView.fxml")
+      case _ => switchTo("/BotView.fxml")
+    }
+
+    md match {
+      case "HVC" =>
+        val bc = gameController.asInstanceOf[BotController]
+        bc.loadGame(board, rand, currentPlayer, openCoords, r, c, playerColorOpt, savePath, difficulty, selectedTempo, history)
+        bc.setPrimaryStage(primaryStage)
+        bc.setBackToMenuFn(() => showMainMenu())
+      case "HVH" =>
+        val mc = gameController.asInstanceOf[MultiplayerController]
+        mc.loadGame(board, rand, currentPlayer, openCoords, r, c, savePath, selectedTempo, history)
+        mc.setPrimaryStage(primaryStage)
+        mc.setBackToMenuFn(() => showMainMenu())
+      case _ => ()
+    }
+    showScene(gameRoot)
+  }
+
+  private def showAlert(message: String, alertType: Alert.AlertType): Unit = {
+    val alert = new Alert(alertType, message, ButtonType.OK)
+    alert.showAndWait()
   }
 }

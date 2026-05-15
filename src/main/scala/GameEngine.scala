@@ -1,37 +1,22 @@
 import KonaneLogic.*
 
 object GameEngine {
-  // Board creation and setup
+  // Direct aliases to KonaneLogic (game rules)
   def initBoard(rows: Int, cols: Int): Board = KonaneLogic.initBoard(rows, cols)
   def setupBoard(board: Board, rows: Int, cols: Int, rand: MyRandom): (Board, List[Coord2D], MyRandom) = KonaneLogic.setupBoard(board, rows, cols, rand)
-
-  // Dimensions helpers
-  def getRows(board: Board): Int = KonaneLogic.getRows(board)
-  def getCols(board: Board): Int = KonaneLogic.getCols(board)
   def isValidDimension(r: Int, c: Int): Boolean = KonaneLogic.isValidDimension(r, c)
-
-  // Moves and rules
-  def randomMove(lst: List[Coord2D], rand: MyRandom): (Coord2D, MyRandom) = KonaneLogic.randomMove(lst, rand)
   def isValidMove(board: Board, player: Stone, from: Coord2D, to: Coord2D, rows: Int, cols: Int): Boolean = KonaneLogic.isValidMove(board, player, from, to, rows, cols)
-  def executeMove(board: Board, player: Stone, from: Coord2D, to: Coord2D, mid: Coord2D, lstOpen: List[Coord2D]): (Board, List[Coord2D]) = KonaneLogic.executeMove(board, player, from, to, mid, lstOpen)
   def play(board: Board, player: Stone, coordFrom: Coord2D, coordTo: Coord2D, lstOpenCoords: List[Coord2D]): (Option[Board], List[Coord2D]) = KonaneLogic.play(board, player, coordFrom, coordTo, lstOpenCoords)
-  def getAllValidMoves(board: Board, player: Stone, rows: Int, cols: Int): List[(Coord2D, Coord2D)] = KonaneLogic.getAllValidMoves(board, player, rows, cols)
   def getValidMovesForPiece(board: Board, player: Stone, from: Coord2D, rows: Int, cols: Int): List[Coord2D] = KonaneLogic.getValidMovesForPiece(board, player, from, rows, cols)
-  def canMoveAgain(board: Board, player: Stone, from: Coord2D, rows: Int, cols: Int): Boolean = KonaneLogic.canMoveAgain(board, player, from, rows, cols)
-  def getDestinations(mvs: List[(Coord2D, Coord2D)]): List[Coord2D] = KonaneLogic.getDestinations(mvs)
+  def getAllValidMoves(board: Board, player: Stone, rows: Int, cols: Int): List[(Coord2D, Coord2D)] = KonaneLogic.getAllValidMoves(board, player, rows, cols)
   def playRandomly(board: Board, r: MyRandom, player: Stone, lstOpenCoords: List[Coord2D], f: (List[Coord2D], MyRandom) => (Coord2D, MyRandom)): (Option[Board], MyRandom, List[Coord2D], Option[Coord2D]) = KonaneLogic.playRandomly(board, r, player, lstOpenCoords, f)
-
-  // Utilities
   def boardToString(board: Board, rows: Int, cols: Int): String = KonaneLogic.boardToString(board, rows, cols)
   def parseInput(s: String): Option[Coord2D] = KonaneLogic.parseInput(s)
   def coordToString(c: Coord2D): String = KonaneLogic.coordToString(c)
   def getWinner(board: Board, currentPlayer: Stone, rows: Int, cols: Int): Option[Stone] = KonaneLogic.getWinner(board, currentPlayer, rows, cols)
-  // Pure helpers for move sequences and serialization
-  def applyMoveSequence(board: Board, player: Stone, startFrom: Coord2D, destinations: List[Coord2D], rows: Int, cols: Int, openCoords: List[Coord2D]): Option[(Board, List[Coord2D])] = KonaneLogic.applyMoveSequence(board, player, startFrom, destinations, rows, cols, openCoords)
   def continueCapturePure(board: Board, player: Stone, lastPos: Coord2D, choiceOpt: Option[Coord2D], rows: Int, cols: Int, openCoords: List[Coord2D]): Option[(Board, List[Coord2D], Boolean)] = KonaneLogic.continueCapturePure(board, player, lastPos, choiceOpt, rows, cols, openCoords)
-  def serializeGame(board: Board, randSeed: Long, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColorOpt: Option[Stone], difficulty: String): String = KonaneLogic.serializeGame(board, randSeed, currentPlayer, openCoords, rows, cols, mode, playerColorOpt, difficulty)
-  def parseGameContent(content: String): Option[(Board, MyRandom, Stone, List[Coord2D], Int, Int, String, Option[Stone], String)] = KonaneLogic.parseGameContent(content)
-  def isAcceptedTimeMillis(ms: Long): Boolean = KonaneLogic.isAcceptedTimeMillis(ms)
+  def serializeGame(board: Board, randSeed: Long, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColorOpt: Option[Stone], difficulty: String, history: List[(Board, MyRandom, Stone, List[Coord2D])]): String = KonaneLogic.serializeGame(board, randSeed, currentPlayer, openCoords, rows, cols, mode, playerColorOpt, difficulty, history)
+  def parseGameContent(content: String): Option[(Board, MyRandom, Stone, List[Coord2D], Int, Int, String, Option[Stone], String, List[(Board, MyRandom, Stone, List[Coord2D])])] = KonaneLogic.parseGameContent(content)
 
 
   // --- Pure game controller helpers (moved here to keep a single pure core) ---
@@ -150,19 +135,39 @@ object GameEngine {
   }
 
   def handleUndo(state: GameState): (GameState, TurnResult) = {
-    val toPop = Math.min(2, state.history.length)
-    if (toPop == 0) (state, MoveOk(state))
-    else {
-      val restored = state.history(toPop - 1)
-      val newHistory = state.history.drop(toPop)
-      val (b0, r0, p0, open0) = restored
-      val newState = state.copy(board = b0, rand = r0, currentPlayer = p0, openCoords = open0, history = newHistory)
-      (newState, MoveOk(newState))
+    if (state.history.isEmpty) return (state, MoveOk(state))
+
+    state.mode match {
+      case "HVC" =>
+        // In HVC we must always restore to a state where it's the human's turn.
+        // Walk the history (newest-first) and find the first entry whose player
+        // matches the human's colour.  Remove every entry up to and including
+        // that entry so the history stays consistent.
+        val humanColor = state.playerColorOpt.getOrElse(Stone.Black)
+        val idx = state.history.indexWhere { case (_, _, p, _) => p == humanColor }
+        if (idx < 0) (state, MoveOk(state)) // no human-turn entry found – nothing to undo
+        else {
+          val (b0, r0, p0, open0) = state.history(idx)
+          val newHistory = state.history.drop(idx + 1)
+          val newState = state.copy(board = b0, rand = r0, currentPlayer = p0,
+            openCoords = open0, history = newHistory,
+            pendingCapture = None, captureSequenceStartState = None)
+          (newState, MoveOk(newState))
+        }
+
+      case _ =>
+        // HVH (and any other mode): undo exactly one turn
+        val (b0, r0, p0, open0) = state.history.head
+        val newHistory = state.history.tail
+        val newState = state.copy(board = b0, rand = r0, currentPlayer = p0,
+          openCoords = open0, history = newHistory,
+          pendingCapture = None, captureSequenceStartState = None)
+        (newState, MoveOk(newState))
     }
   }
 
   def handleSave(state: GameState, fileName: String): (GameState, TurnResult) = {
-    (state, SaveRequested(state.board, state.rand, state.currentPlayer, state.openCoords, state.rows, state.cols, state.mode, state.playerColorOpt, state.difficulty, fileName))
+    (state, SaveRequested(state.board, state.rand, state.currentPlayer, state.openCoords, state.rows, state.cols, state.mode, state.playerColorOpt, state.difficulty, fileName, state.history))
   }
 
   def handleAction(state: GameState, action: GameAction): (GameState, TurnResult) = action match {

@@ -1,24 +1,18 @@
 import scala.util.Using
 
 object FileUtils {
-  def deleteIfExists(path: String): Unit = {
-    try {
-      val f = new java.io.File(path)
-      if (f.exists()) { f.delete(); println("Ficheiro de salvamento eliminado: " + path) }
-    } catch { case _: Exception => () }
-  }
 
   def fileNameExists(fileName: String): Boolean = {
     new java.io.File(s"saves/${fileName}.txt").exists()
   }
 
-  def saveGame(fileName: String, board: Board, rand: MyRandom, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColor: Option[Stone], difficulty: String): Boolean = {
+  def saveGame(fileName: String, board: Board, rand: MyRandom, currentPlayer: Stone, openCoords: List[Coord2D], rows: Int, cols: Int, mode: String, playerColor: Option[Stone], difficulty: String, history: List[(Board, MyRandom, Stone, List[Coord2D])]): Boolean = {
     try {
       val dir = new java.io.File("saves")
       if (!dir.exists()) dir.mkdir()
       val file = new java.io.File(dir, s"${fileName}.txt")
       val pw = new java.io.PrintWriter(file)
-      val content = KonaneLogic.serializeGame(board, rand.seed, currentPlayer, openCoords, rows, cols, mode, playerColor, difficulty)
+      val content = KonaneLogic.serializeGame(board, rand.seed, currentPlayer, openCoords, rows, cols, mode, playerColor, difficulty, history)
       pw.println(content)
       pw.close()
       println(s"Jogo salvo em: ${file.getPath}")
@@ -28,7 +22,7 @@ object FileUtils {
     }
   }
 
-  def loadGameFromFile(path: String): Option[(Board, MyRandom, Stone, List[Coord2D], Int, Int, String, Option[Stone], String)] = {
+  def loadGameFromFile(path: String): Option[(Board, MyRandom, Stone, List[Coord2D], Int, Int, String, Option[Stone], String, List[(Board, MyRandom, Stone, List[Coord2D])])] = {
     // read file content safely and close source
     val contentTry = Using(scala.io.Source.fromFile(path)) { src => src.mkString }
     contentTry.toOption match {
@@ -37,5 +31,3 @@ object FileUtils {
     }
   }
 }
-
-

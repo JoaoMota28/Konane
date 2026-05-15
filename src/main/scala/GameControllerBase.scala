@@ -47,29 +47,22 @@ trait GameControllerBase {
    */
   def buildBoardUI(): Unit = {
     boardGrid.getChildren.clear()
-    drawRows(0)
+    drawBoard(0, 0)
     updateStatus()
   }
 
   /**
-   * Recursively draw all rows of the board.
+   * Recursively draw the entire board (rows first, then columns).
    */
   @tailrec
-  private def drawRows(i: Int): Unit = {
+  private def drawBoard(i: Int, j: Int): Unit = {
     if (i < boardSize) {
-      drawColumns(i, 0)
-      drawRows(i + 1)
-    }
-  }
-
-  /**
-   * Recursively draw all columns for a given row.
-   */
-  @tailrec
-  private def drawColumns(i: Int, j: Int): Unit = {
-    if (j < boardSize) {
-      createCell(i, j)
-      drawColumns(i, j + 1)
+      if (j < boardSize) {
+        createCell(i, j)
+        drawBoard(i, j + 1)
+      } else {
+        drawBoard(i + 1, 0)
+      }
     }
   }
 
@@ -139,17 +132,15 @@ trait GameControllerBase {
   protected def startTimer(): Unit = {
     val interval = 100
     val steps = (tempoLimite * 10).toInt.max(1)
-    var count = 0
 
-    timer = new Timeline(new KeyFrame(Duration.millis(interval), _ => {
-      count += 1
-      val p = 1.0 - count.toDouble / steps
-      timeProgressBar.setProgress(Math.max(0.0, p))
-
-      if (p <= 0.0) {
+    timer = new Timeline(new KeyFrame(Duration.millis(interval), { evt =>
+      val currentValue = timeProgressBar.getProgress
+      if (currentValue <= 0.0) {
         timer.stop()
         timeExpired = true
-        statusLabel.setText("Tempo esgotado!")
+        onTimeout()
+      } else {
+        timeProgressBar.setProgress(Math.max(0.0, currentValue - 1.0 / steps))
       }
     }))
     timer.setCycleCount(Animation.INDEFINITE)
@@ -161,6 +152,15 @@ trait GameControllerBase {
    */
   protected def stopTimer(): Unit = {
     if (timer != null) timer.stop()
+  }
+
+  /**
+   * Called by the timer when time expires — override in subclasses for
+   * game-specific timeout behaviour (forfeit current player, show alert, etc.).
+   * Default: just updates the status label.
+   */
+  protected def onTimeout(): Unit = {
+    statusLabel.setText("Tempo esgotado!")
   }
 
   /**
@@ -179,42 +179,79 @@ trait GameControllerBase {
     if (f.exists()) new Image(f.toURI.toString) else new Image(getClass.getResourceAsStream("/Black.png"))
   }
 
-   /**
-    * Close the game window and return to menu.
-    */
-   protected def backToMenu(): Unit = {
-     val loader = new FXMLLoader(getClass.getResource("/MainView.fxml"))
-     val root = loader.load[Parent]()
-     val ctrl = loader.getController[MainController]
-     ctrl.setPrimaryStage(primaryStage)
-     primaryStage.getScene.setRoot(root)
-   }
+  // Small UI helpers to reduce duplicated Alert construction
+  protected def showInfo(title: String, message: String): Unit = {
+    val alert = new Alert(Alert.AlertType.INFORMATION)
+    alert.setTitle(title)
+    alert.setHeaderText(null)
+    alert.setContentText(message)
+    alert.getButtonTypes.setAll(ButtonType.OK)
+    alert.showAndWait()
+  }
 
-   /**
-    * Handle save action - shows dialog for filename selection.
-    */
-   protected def handleSave(): Unit = {
-     stopTimer()
-     val dialog = new javafx.scene.control.TextInputDialog()
-     dialog.setTitle("Guardar Jogo")
-     dialog.setHeaderText("Escolhe um nome para o ficheiro de gravação:")
-     dialog.setContentText("Nome:")
-     val result = dialog.showAndWait()
-     if (!result.isPresent || result.get().trim.isEmpty) {
-       resetTimer()
-       startTimer()
-     } else {
-       val name = result.get().trim
-       if (FileUtils.fileNameExists(name)) {
-         new Alert(Alert.AlertType.ERROR, "Já existe um ficheiro com esse nome. Escolhe outro nome.", ButtonType.OK).showAndWait()
-         resetTimer()
-         startTimer()
-       } else {
-         val (ns, res) = GameEngine.handleAction(currentState, Save(name))
-         handleTurnResult(ns, res)
-       }
-     }
-   }
+  protected def showError(title: String, message: String): Unit = {
+    val alert = new Alert(Alert.AlertType.ERROR)
+    alert.setTitle(title)
+    alert.setHeaderText(null)
+    alert.setContentText(message)
+    alert.getButtonTypes.setAll(ButtonType.OK)
+    alert.showAndWait()
+  }
+
+  protected def askChoice(title: String, header: String, opt1: String, opt2: String): Boolean = {
+    val alert = new Alert(Alert.AlertType.CONFIRMATION)
+    val btn1 = new ButtonType(opt1)
+    val btn2 = new ButtonType(opt2)
+    alert.getButtonTypes.setAll(btn1, btn2)
+    alert.setTitle(title)
+    alert.setHeaderText(header)
+    val res = alert.showAndWait()
+    res.isPresent && res.get() == btn1
+  }
+
+  // Callback set by MainController so returning to menu reuses the
+  // original MainController instance (preserving options state).
+  protected var backToMenuFn: () => Unit = () => {
+    val loader = new FXMLLoader(getClass.getResource("/MainView.fxml"))
+    val root = loader.load[Parent]()
+    val ctrl = loader.getController[MainController]
+    ctrl.setPrimaryStage(primaryStage)
+    primaryStage.getScene.setRoot(root)
+  }
+
+  def setBackToMenuFn(f: () => Unit): Unit = backToMenuFn = f
+
+  /**
+   * Close the game window and return to menu.
+   * Uses the injected callback when available (preserves MainController state).
+   */
+  protected def backToMenu(): Unit = backToMenuFn()
+
+  /**
+   * Handle save action - shows dialog for filename selection.
+   */
+  protected def handleSave(): Unit = {
+    stopTimer()
+    val dialog = new javafx.scene.control.TextInputDialog()
+    dialog.setTitle("Guardar Jogo")
+    dialog.setHeaderText("Escolhe um nome para o ficheiro de gravação:")
+    dialog.setContentText("Nome:")
+    val result = dialog.showAndWait()
+    if (!result.isPresent || result.get().trim.isEmpty) {
+      resetTimer()
+      startTimer()
+    } else {
+      val name = result.get().trim
+      if (FileUtils.fileNameExists(name)) {
+        new Alert(Alert.AlertType.ERROR, "Já existe um ficheiro com esse nome. Escolhe outro nome.", ButtonType.OK).showAndWait()
+        resetTimer()
+        startTimer()
+      } else {
+        val (ns, res) = GameEngine.handleAction(currentState, Save(name))
+        handleTurnResult(ns, res)
+      }
+    }
+  }
 
   /**
    * Initialize game state and UI after setup or load.
@@ -254,7 +291,7 @@ trait GameControllerBase {
 
       case InvalidAction(msg) =>
         captureLocked = false
-        new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK).showAndWait()
+        showInfo("Aviso", msg)
         resetTimer()
         startTimer()
 
@@ -265,23 +302,14 @@ trait GameControllerBase {
         currentState = ns  // Update state with the winning move
         buildBoardUI()     // Display the final board state
         Platform.runLater(() => {
-          val alert = new Alert(Alert.AlertType.INFORMATION)
-          alert.setTitle("Fim de Jogo")
-          alert.setHeaderText(onGameOverMessage(winner))
-          alert.setContentText(s"Vencedor: $winner")
-          alert.getButtonTypes.setAll(new ButtonType("Voltar ao Menu"))
-          alert.showAndWait()
+          showInfo("Fim de Jogo", s"${onGameOverMessage(winner)}\nVencedor: $winner")
           backToMenu()
         })
 
-       case SaveRequested(b, r, p, open, rr, cc, md, pcol, diff, fileName) =>
-         val ok = FileUtils.saveGame(fileName, b, r, p, open, rr, cc, md, pcol, diff)
-         val alert = if (!ok)
-           new Alert(Alert.AlertType.ERROR, "Falha ao salvar.", ButtonType.OK)
-         else
-           new Alert(Alert.AlertType.INFORMATION, "Jogo salvo com sucesso!", ButtonType.OK)
-         alert.showAndWait()
-         if (ok) backToMenu()
+      case SaveRequested(b, r, p, open, rr, cc, md, pcol, diff, fileName, hist) =>
+        val ok = FileUtils.saveGame(fileName, b, r, p, open, rr, cc, md, pcol, diff, hist)
+        if (!ok) showError("Erro", "Falha ao salvar.") else showInfo("Salvar", "Jogo salvo com sucesso!")
+        if (ok) backToMenu()
 
       case _ => ()
     }
@@ -299,16 +327,9 @@ trait GameControllerBase {
    * Hook: called when a capture is required. Override for specific UI behavior.
    */
   protected def onCaptureRequired(lastPos: Coord2D, opts: List[Coord2D]): Unit = {
-    // Default: show alert and lock capture
-    val alert = new Alert(Alert.AlertType.CONFIRMATION)
-    alert.setTitle("Captura Encadeada")
-    alert.setHeaderText(captureRequiredMessage())
-    val btnContinue = new ButtonType("Continuar")
-    val btnStop = new ButtonType("Terminar Jogada")
-    alert.getButtonTypes.setAll(btnContinue, btnStop)
-    val result = alert.showAndWait()
-
-    if (result.isPresent && result.get() == btnContinue) {
+    // Default: ask user and act accordingly using helper
+    val cont = askChoice("Captura Encadeada", captureRequiredMessage(), "Continuar", "Terminar Jogada")
+    if (cont) {
       captureLocked = true
       selectedPiece = Some(lastPos)
       highlightedMoves = opts
@@ -332,7 +353,3 @@ trait GameControllerBase {
    */
   protected def captureRequiredMessage(): String = "Capturaste uma peça! Queres continuar a capturar?"
 }
-
-
-
-
